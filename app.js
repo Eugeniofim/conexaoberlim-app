@@ -278,6 +278,11 @@ function route() {
   const h = location.hash.slice(2) || '';
   const p = h.split('/');
   document.documentElement.lang = LANG === 'pt' ? 'pt-BR' : LANG;
+  /* rotas dos módulos (o kit da viagem do cliente: #/k/… e #/kt/…): publico-berlim.js e kit-berlim.js */
+  if (window.ROTAS_EXTRA && typeof ROTAS_EXTRA[p[0]] === 'function') {
+    ROTAS_EXTRA[p[0]](p.slice(1));
+    document.body.classList.toggle('em-adm', false); faixaAcimaDaBarra(); scrollTo(0, 0); return;
+  }
   if (p[0] === 'novasenha') viewNewPass();
   else if (p[0] === 'login') viewLogin();
   else if (p[0] === 'adm') {
@@ -2280,7 +2285,10 @@ function admSettings() {
     const v = $('#avEmail').value.trim();
     if (v && !/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(v)) return toast(t('admAvisoBad'));
     DB.settings.admEmail = v;
-    if ($('#avCli')) DB.settings.avisarClientes = $('#avCli').checked;
+    if ($('#avCli')) {
+      DB.settings.avisarClientes = $('#avCli').checked;
+      DB.settings.avisoClientesEscolhido = true;   /* 27/10: a escolha dela vale no servidor (função avisos) */
+    }
     /* campo que nao esta na tela (e-mail ao cliente desligado) guarda o que ja havia */
     const pega = (id) => $('#' + id).value.trim();
     if ($('#reciboIntroPt')) {

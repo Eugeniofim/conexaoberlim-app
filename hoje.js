@@ -36,6 +36,8 @@ function hjLembrete(b) {
     `🗓 ${hjData(b.date)} · ${hjJanela(b)}`,
     saida ? `🚩 Saída: ${saida}${busca}` : (x.pickup ? '🚩 Eu busco você no hotel' : ''),
     falta > 0 ? `💶 Saldo a acertar: ${eur(falta)}` : '',
+    /* 27/10: o kit da viagem (o voucher e tudo) — o link curto, se ela já mandou o kit (kit-berlim.js) */
+    typeof Kit !== 'undefined' && Kit.urlConhecida(hjFicha(b)) ? `🎟 O kit da sua viagem (voucher e tudo): ${Kit.urlConhecida(hjFicha(b))}` : '',
   ].filter(Boolean);
   return [`Olá, ${hjPrimeiro(b.name)}! Aqui é ${guiaNome()}, da ${guiaNegocio()}. Passando para lembrar do nosso passeio:`, '', ...dados, '', 'Qualquer imprevisto, me chame aqui. Até lá!'].join('\n');
 }

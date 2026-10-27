@@ -340,6 +340,12 @@ function semeiaNovidades() {
     if (!DB.settings.depoimentosVideoTxt) DB.settings.depoimentosVideoTxt = GUIA_CFG.depoimentosVideoTxt || '';
     DB.settings.depoimentosSemeados = true;
   }
+  /* 27/10/2026 — O KIT DA VIAGEM (kit-berlim.js). (1) o servidor (e-mail de recibo e de confirmação)
+     só põe o link do kit em app que sabe abrir: kitVersao nos Ajustes (públicos), que sobem quando ela entra.
+     (2) o e-mail ao cliente passou a sair de verdade (função avisos): liga UMA vez o "avisar clientes"
+     para o botão "Avisar cliente" aparecer; ela desliga em Ajustes → Avisos (e aí a escolha dela vale). */
+  if (+DB.settings.kitVersao !== 1) DB.settings.kitVersao = 1;
+  if (!DB.settings.avisoClientesV1) { if (!DB.settings.avisoClientesEscolhido) DB.settings.avisarClientes = true; DB.settings.avisoClientesV1 = true; }
   return JSON.stringify(DB.settings) !== antes;
 }
 

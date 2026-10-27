@@ -71,12 +71,39 @@ IA_FERRAMENTAS.push(
 );
 IA_LEITURA.add('ver_dados'); IA_LEITURA.add('abrir_aba');
 
+/* O KIT DA VIAGEM (27/10/2026, kit-berlim.js): o link e a mensagem pronta — só leitura, quem manda é ela */
+if (typeof Kit !== 'undefined') {
+  IA_FERRAMENTAS.push({ name: 'kit_viagem', description: 'O KIT DA VIAGEM de um cliente que reservou (é o voucher dele): uma página só com o código de cada passeio, dia, turno, ponto de encontro, programa, incluso, o que levar, pagamento, dicas para Berlim e as indicações dela. Devolve o link (abre no celular, sem senha; o curto se atualiza sozinho) e a mensagem pronta para ELA mandar. Use para "manda o kit da Ana", "o voucher do cliente", "o que mando pra quem reservou". Não envia nada.',
+    input_schema: obj({ cliente: S_('nome, WhatsApp ou código da reserva') }, ['cliente']) });
+  IA_LEITURA.add('kit_viagem');
+}
+function bxAchaClienteKit(q) {
+  const s = String(q || '').toLowerCase().trim(); if (!s) return { erro: 'diga o nome, o WhatsApp ou o código da reserva' };
+  const conf = DB.bookings.filter(b => b && b.status === 'confirmed');
+  const cod = conf.find(b => String(b.code || '').toLowerCase() === s); if (cod) return { chave: kitChaveDe(cod) };
+  const dig = s.replace(/\D/g, '');
+  const achou = conf.filter(b => String(b.name || '').toLowerCase().includes(s) || String(b.email || '').toLowerCase() === s || (dig.length >= 6 && String(b.whats || '').replace(/\D/g, '').includes(dig)));
+  const chaves = [...new Set(achou.map(kitChaveDe))];
+  if (chaves.length === 1) return { chave: chaves[0] };
+  if (chaves.length > 1) return { erro: 'mais de um cliente serve — pergunte qual', opcoes: chaves.slice(0, 8).map(c => { const b = achou.find(x => kitChaveDe(x) === c); return b.name + (b.whats ? ' · ' + b.whats : ''); }) };
+  return { erro: 'não achei reserva confirmada desse cliente', dica: 'ver_reservas' };
+}
+async function bxKitViagem(i) {
+  const r = bxAchaClienteKit(i.cliente); if (r.erro) return r;
+  const d = await Kit.dados(r.chave); if (!d) return E_('esse cliente ainda não tem reserva confirmada — o kit nasce quando a reserva confirma');
+  const url = await Kit.link(r.chave);
+  return { cliente: d.nome, passeios: d.servicos.map(s => `${s.data} ${s.hora || ''} · ${s.nome} · voucher ${s.code}`), link: url, link_curto_e_atualizado: Kit.curto(r.chave),
+    mensagem_pronta: await Kit.mensagem(r.chave, url), onde: 'em Reservas (ou na ficha do cliente), botão "Kit da viagem (voucher)" — dá para gerar o PDF ali',
+    regra: 'mostre a mensagem pronta para ela copiar; você não envia nada' };
+}
+
 const _bxLeituraBase = iaLeitura;
 iaLeitura = function (nome, i) {
   if (nome === 'abrir_aba') {
     if (!ADM_TABS.some(([id]) => id === i.aba)) return E_('aba não existe');
     setTimeout(() => go('/adm/' + i.aba), 0); return { ok: true, aberta: i.aba };
   }
+  if (nome === 'kit_viagem') return bxKitViagem(i).catch(e => E_(String((e && e.message) || e)));
   if (nome !== 'ver_dados') return _bxLeituraBase(nome, i);
   const C = BX_COLECOES[i.o_que]; if (!C) return E_('não conheço essa aba');
   const q = String(i.busca || '').toLowerCase().trim();
@@ -115,6 +142,7 @@ iaSistema = function () {
 - Hoje, Agenda, Meus passeios, Reservas, Cupons: ver_passeios, ver_agenda, ver_reservas, ver_cupons, ver_bloqueios e as ferramentas de passeio, horário, bloqueio e cupom.
 - Pedidos de Transfer e de Monte seu roteiro (os clientes mandam pelo app, sem preço): ver_dados pedidos; mexer onde=pedidos respondido=sim depois que ela responder. A resposta com o valor sai pelo WhatsApp dela.
 - Clientes: ver_dados clientes com busca pelo nome ou WhatsApp; mexer onde=clientes anotacao para guardar o que importa da pessoa (idades, mobilidade, alergia, aniversário, gosto).
+- Kit da viagem (é o voucher do cliente: link com tudo, PDF): kit_viagem com o nome do cliente — devolve o link e a mensagem pronta para ela mandar. Mandar o kit é o passo natural depois de confirmar uma reserva.
 - Cores da marca, Para a sua viagem (hotel, chip, seguro), depoimentos, contato: abrir_aba settings e diga o que tocar.
 - O que nenhuma ferramenta faz: abrir_aba e diga o que tocar. Nunca responda só "não consigo".
 

@@ -367,7 +367,7 @@ const Mkt = {
 
 /* ---------- ajudantes ---------- */
 const nomeTour = (x) => x ? tl(x.name) : '?';
-/* v-data: a data LOCAL do aparelho (isoToday() usa UTC: em Roma e Copenhague, de
+/* v-data: a data LOCAL do aparelho (isoToday() usa UTC: em Roma e em Berlim, de
    0h às 2h, o app achava que ainda era ontem). E a linha que o assistente lê:
    no TOPO das instruções, com dia da semana, calculada a cada resposta. Turno
    de outro dia vai carimbado, senão o histórico de ontem diz "hoje é 28". */
