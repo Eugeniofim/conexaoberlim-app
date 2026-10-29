@@ -1,8 +1,7 @@
 /* =====================================================
-   O ASSISTENTE MONTA O ORÇAMENTO IGUAL (29/10/2026) — o da Yalla, nesta base
+   O ASSISTENTE MONTA O ORÇAMENTO (29/10/2026)
 
-   As mesmas ferramentas e as mesmas travas do assistente da Milla
-   (app-yalla-novo/orcamento-yalla.js, parte 6), no motor destes apps:
+   As ferramentas e as travas do orçamento premium, no motor destes apps:
    - ver_orcamentos · criar_orcamento · editar_orcamento ·
      proposta_orcamento · orcamento_do_pedido · orcamento_fechou;
    - SÓ O QUE VEIO DELA: texto, incluso, não incluso, observação, destaque
@@ -17,7 +16,7 @@
 (function () {
   if (typeof IA_FERRAMENTAS === 'undefined' || typeof iaPlano !== 'function' || typeof Orc === 'undefined') return;
 
-  /* a Sandra tinha um orçamento antigo (orcamento_do_pedido / _servico / _aceito e "mexer onde=orcamentos"):
+  /* o orçamento antigo (orcamento_do_pedido / _servico / _aceito e "mexer onde=orcamentos"):
      o novo entra no lugar, com o mesmo nome onde dá */
   for (let k = IA_FERRAMENTAS.length - 1; k >= 0; k--) if (['orcamento_do_pedido', 'orcamento_servico', 'orcamento_aceito'].includes(IA_FERRAMENTAS[k].name)) IA_FERRAMENTAS.splice(k, 1);
 

@@ -58,7 +58,7 @@ function paginaPublicaErro(msg, tentar) {
   const b = document.getElementById('pubDeNovo'); if (b) b.onclick = () => location.reload();
 }
 /* O link do cliente (proposta #/p, viagem #/k) é PÚBLICO: lê SEMPRE como visitante.
-   Na Yalla (29/10/2026) ele lia com a sessão de quem estivesse logada no aparelho: com o login
+   Até 29/10/2026 ele lia com a sessão de quem estivesse logada no aparelho: com o login
    da noite anterior vencido, o banco recusou (401) e a tela disse "não existe mais" — com tudo
    no banco. Agora: visitante sempre; falha de rede tenta 3 vezes e, se não der, diz que NÃO
    CONSEGUIU abrir. "Não existe" só quando o banco responde que não existe. */

@@ -36,7 +36,7 @@ function pdfCarrega() {
 }
 /* os blocos onde a folha pode virar (o fim de cada um), por documento */
 /* proposta (orcamento-premium.js): título nunca fecha a folha — pode virar depois da FOTO e de cada
-   parágrafo, nunca depois do nome do dia nem do "Roteiro personalizado" (Yalla, 28/10/2026) */
+   parágrafo, nunca depois do nome do dia nem do "Roteiro personalizado" (28/10/2026) */
 const PDF_BLOCOS = '.kt-bl,.kt-grade,section,h2:not(.pp-h2),h3:not(.pp-tit),p:not(.pp-kick),li,tr,.pp-foto,.pp p:not(.pp-kick),.pp li';
 function pdfCortes(alturaTotal, folha, fins) {
   const cortes = []; let ini = 0;

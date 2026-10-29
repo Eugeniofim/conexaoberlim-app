@@ -1,11 +1,10 @@
 /* =====================================================
-   ORÇAMENTO PREMIUM (29/10/2026) — o orçamento da Yalla, igualzinho
+   ORÇAMENTO PREMIUM (29/10/2026)
 
-   Pedido do Eugênio: "aplique esse orçamento em alguns dos apps: Carol,
-   Dulcineia, Sandra — adapta igualzinho do que temos na Milla". Portado de
-   app-yalla-novo/orcamento-yalla.js (v1.9.5) + o Orc da base EmRoma
-   (operacao.js) para a família destes apps (base app-guia / Londres).
-   O MESMO arquivo nos três apps; o que muda vem do APP_CONFIG.
+   O orçamento completo do app premium do estúdio, para os apps de guia
+   desta família (base app-guia / Londres). O MESMO arquivo em todos; o
+   que muda vem do APP_CONFIG. Junta o Orc da base de operação com o
+   editor, a proposta e as travas do "nunca inventar".
 
    - O EDITOR: cliente (nome, WhatsApp, adultos e crianças, hotéis por
      período, chegada e partida com hora e voo); o ROTEIRO dia a dia —
@@ -22,14 +21,14 @@
      viagem: o cliente lê UM pelo código, só a dona grava); sem tabela ou
      sem login, o comprido #/pp/… leva tudo dentro. E o PDF.
    - FECHOU: cada serviço vira reserva e abre o kit da viagem.
-   - NUNCA INVENTAR (as travas da Yalla, 28–29/10/2026): hora só a dela ou
-     a do horário fixo do passeio; pedido sem preço fica FORA da proposta
-     até ela pôr o valor; lembrete interno nunca vai para o cliente; os
-     textos da proposta são os DELA (dos termos dela ou vazios).
+   - NUNCA INVENTAR (28–29/10/2026): hora só a dela ou a do horário fixo do
+     passeio; pedido sem preço fica FORA da proposta até ela pôr o valor;
+     lembrete interno nunca vai para o cliente; os textos da proposta são
+     os DELA (dos termos dela ou vazios).
 
    O que muda de app para app (APP_CONFIG.orc): o imposto (nasce
-   DESLIGADO — só a Yalla cobra VAT), o logo e as fotos da capa. A moeda é
-   a do app (APP_CONFIG.guia.moeda).
+   DESLIGADO), o logo e as fotos da capa. A moeda é a do app
+   (APP_CONFIG.guia.moeda).
    ===================================================== */
 'use strict';
 
@@ -49,7 +48,7 @@ const ppTextoPadrao = (k) => {
   return k === 'condicoes' ? (s.propCondicoes || '') : (s.propDiferencial || '');
 };
 
-/* as peças da base EmRoma que o editor usa, no jeito destes apps */
+/* as peças da base de operação que o editor usa, no jeito destes apps */
 const oyGrava = () => { localStorage.setItem(DB_KEY, JSON.stringify(DB)); if (typeof itAgendar === 'function') itAgendar(); };
 const oyGravaReserva = (b) => { oyGrava(); if (b && typeof cloudUpdateBooking === 'function') cloudUpdateBooking(b); };
 const opNum = (w) => { const d = String(w || '').replace(/\D/g, ''); return d.length >= 8 ? d : ''; };
@@ -63,7 +62,7 @@ async function opCopia(txt) {
     try { document.execCommand('copy'); } catch (e2) {} ta.remove(); return true;
   }
 }
-/* a janelinha (o opJanela da base EmRoma) */
+/* a janelinha (o opJanela da base de operação) */
 function opJanela(titulo, html) {
   oyCss();
   const d = document.createElement('dialog'); d.className = 'oy-dlg';
@@ -76,7 +75,7 @@ function opJanela(titulo, html) {
   return d;
 }
 
-/* ---------- 1. o modelo (o Orc da base EmRoma + o que a Yalla acrescentou) ---------- */
+/* ---------- 1. o modelo (o Orc da base de operação + o orçamento premium) ---------- */
 const ORC_STATUS = [['novo', 'Novo'], ['rascunho', 'Em montagem'], ['enviado', 'Enviado'], ['fechado', 'Fechou'], ['perdido', 'Não fechou']];
 const OY_OBS_INTERNA = /^(Sem preço na tabela|O cliente pediu — escolha|Defina o valor)/;
 const OY_TIPOS = ['passeio', 'traslado', 'livre'];
@@ -141,7 +140,7 @@ const Orc = {
   subtotal(o) { return oyTotInf(o) > 0 ? oyCent(oyTotInf(o) / (1 + oyVatPct(o) / 100)) : Math.max(0, Orc.soma(o) - (+(o && o.desconto) || 0)); },
   vat(o) { return oyTotInf(o) > 0 ? oyCent(oyTotInf(o) - Orc.subtotal(o)) : oyCent(Orc.subtotal(o) * oyVatPct(o) / 100); },
   total(o) { return oyTotInf(o) > 0 ? oyCent(oyTotInf(o)) : oyCent(Orc.subtotal(o) + Orc.vat(o)); },
-  /* o que o resto do app já chama (Sandra: Hoje, assistente) */
+  /* o que o resto do app já chama (Hoje, assistente) */
   totais(o) { return { total: Orc.total(o), aCombinar: (o.itens || []).filter(i => !i.aParte && !(+i.valor > 0)) }; },
   sinalDoItem(o, i) { return i.sinal != null ? +i.sinal : Math.round((+i.valor || 0) * (+o.sinalPct || 0) / 100); },
   sinal(o) { return (o.itens || []).reduce((s, i) => s + Orc.sinalDoItem(o, i), 0); },
@@ -188,7 +187,7 @@ const Orc = {
       if (sinalRecebido && sinal > 0) b.payments.push({ amount: sinal, date: isoToday(), method: metodo || 'other', kind: sinal >= total ? 'full' : 'deposit' });
       criadas.push(b);
     }
-    /* cada reserva sobe UMA vez, já completa (POST antes de qualquer PATCH — a ordem que a Yalla pagou caro) */
+    /* cada reserva sobe UMA vez, já completa (POST antes de qualquer PATCH — a ordem que já custou caro) */
     oyGrava();
     for (const b of criadas) if (typeof cloudPushBooking === 'function') cloudPushBooking(b);
     o.status = 'fechado'; o.bookingIds = criadas.map(b => b.id); o.fechadoEm = isoToday();
@@ -318,7 +317,7 @@ function oyProximoDia(o) {
   const ult = oyOrdena(o.itens.filter(i => i.data)).pop();
   return ult ? addDays(ult.data, 1) : '';
 }
-/* OPÇÕES e PREÇO DE CRIANÇA: só quando o passeio tem (a Yalla tem prime/non-prime; aqui ficam quietos se não houver) */
+/* OPÇÕES e PREÇO DE CRIANÇA: só quando o passeio tem (prime/non-prime, minutos de voo…; ficam quietos se não houver) */
 const oyOpcoes = (x) => Array.isArray(x && x.opcoes) ? x.opcoes : [];
 const oyOpNome = (op) => oyPt(op && op.nome).trim();
 const oyTemOpcoes = (x) => oyOpcoes(x).length > 1;
@@ -356,7 +355,7 @@ function oyTraslado(o, qual) {
   const hotel = o.hotel || 'o hotel';
   const tr = Tours.all().find(x => x.type === 'transfer' && x.status !== 'draft');
   const base = tr ? Orc.itemDoCatalogo(tr.id, { pax: oyPax(o) || 2, data: p.data || '' }) : { valor: 0 };
-  /* saída: hora de buscar só se ELA configurou quanto antes do voo (a Yalla usa 4 h); senão em branco */
+  /* saída: hora de buscar só se ELA configurou quanto antes do voo (ex.: 4 h); senão em branco */
   const antes = +OY_CFG.saidaAntesMin || 0;
   const hora = ch ? (p.hora || '') : (p.hora && antes ? oySoma(p.hora, -antes) : '');
   return Orc._item({ tipo: 'traslado', tourId: '', auto: false, pax: oyPax(o) || 2, data: p.data || '', hora, voo: p.voo || '',
@@ -442,7 +441,7 @@ function oyFichaPoe(c) {
     oyCss();
   } catch (e) {}
 }
-/* Carol e Sandra: viewFicha(id) (fichas.js); Dulcineia: admFichaCliente(chave) (ficha.js) */
+/* a ficha do cliente: viewFicha(id) (fichas.js) ou admFichaCliente(chave) (ficha.js), conforme o app */
 if (typeof viewFicha === 'function') {
   const _oyFicha = viewFicha;
   viewFicha = function (id) {
@@ -593,7 +592,7 @@ function ppHtml(d) {
   ${contato.length ? `<footer class="pp-pe">${contato.map(c => `<span>${esc(c)}</span>`).join('<i aria-hidden="true">|</i>')}</footer>` : ''}`;
 }
 
-/* as cores são as DA MARCA de cada app (tokens.css) — a Yalla usa mostarda e preto; aqui, os tons dela */
+/* as cores são as DA MARCA de cada app (tokens.css) — os tons dela */
 function ppCss() {
   if (document.getElementById('ppCss')) return;
   const s = document.createElement('style'); s.id = 'ppCss';
@@ -745,7 +744,7 @@ async function ppAbreCurto(partes) {
   try { ppPagina(d); } catch (e) { paginaPublicaErro('Não consegui montar a proposta agora. Toque em "Tentar de novo".', true); }
 }
 /* as rotas públicas (sem login). A nuvem atualizou enquanto o cliente lê? A proposta NÃO redesenha
-   (voltava ao topo — a Yalla pagou isso em 29/10/2026); e o mesmo link não é buscado de novo. */
+   (voltava ao topo — achado em 29/10/2026); e o mesmo link não é buscado de novo. */
 function ppRota(qual, partes) {
   if (route._oyPub === location.hash && document.getElementById('ppDoc')) return true;
   if (route._oyAbrindo === location.hash) return true;
@@ -755,7 +754,7 @@ function ppRota(qual, partes) {
   else { abrePublico(partes, (d) => d && d.tipo === 'proposta' ? ppPagina(d) : paginaPublicaErro()); setTimeout(fim, 1500); }
   return true;
 }
-/* Carol e Sandra: rotaExtra(p); Dulcineia: ROTAS_EXTRA[nome] (o route() chama antes das rotas dele) */
+/* as rotas públicas: rotaExtra(p) ou ROTAS_EXTRA[nome] (o route() chama antes das rotas dele), conforme o app */
 if (typeof rotaExtra === 'function') {
   const _rotaExtraOrc = rotaExtra;
   rotaExtra = function (p) { return p[0] === 'p' || p[0] === 'pp' ? ppRota(p[0], p.slice(1)) : _rotaExtraOrc(p); };
@@ -798,7 +797,7 @@ async function ppAdm(id) {
   const wa = $('#ppWa');
   if (wa) { wa.href = waLink(ppMensagem(o, url), opNum(o.cliente.whats)); wa.removeAttribute('aria-disabled'); wa.onclick = () => oyMarcaEnviado(o); }
 }
-/* mandou: "enviado" + a tarefa de esperar a resposta (a "Espera" da base EmRoma, nas tarefas dela) */
+/* mandou: "enviado" + a tarefa de esperar a resposta (a "Espera" da base de operação, nas tarefas dela) */
 function oyMarcaEnviado(o) {
   if (['fechado', 'perdido', 'enviado'].includes(o.status)) return;
   o.status = 'enviado'; o.enviadoEm = isoToday(); Orc.salva(o);
@@ -1110,7 +1109,7 @@ function oyLe(o) {
       if (tituloAuto && i.opcao !== antes.opcao) i.desc = oyTituloDe(x, i.opcao);
     }
     /* PEDIDO DO CLIENTE: fica fora da proposta até ela confirmar — pôr o valor, marcar "à parte" ou
-       mudar o nome/dia já é confirmar (na Yalla nada tirava a marca e o serviço sumia da proposta) */
+       mudar o nome/dia já é confirmar (antes nada tirava a marca e o serviço sumia da proposta) */
     if (i.sugestao && (+i.valor > 0 || i.aParte || i.desc !== antes.desc || i.data !== antes.data)) i.sugestao = false;
   });
   const n = (s, d) => { const x = v(s); return x == null ? d : (+x || 0); };
@@ -1150,7 +1149,7 @@ function oySalva(o, redesenha) {
   else if (redesenha) oyRedesenha(o);
 }
 /* DATA E HORÁRIO: o que só muda a ORDEM (dia, hora, faixa, valor do cartão) espera ela sair de todos os
-   campos para reorganizar — redesenhar na hora trocava o campo debaixo do dedo (Yalla, 28/10/2026) */
+   campos para reorganizar — redesenhar na hora trocava o campo debaixo do dedo (28/10/2026) */
 const oyNumCampo = () => { const a = document.activeElement; return !!(a && a.closest && a.closest('.oy') && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); };
 let oyDedo = false;
 if (typeof addEventListener === 'function') {
@@ -1376,7 +1375,7 @@ function oyDoPedido(p) {
     o.itens.push(n);
     if (p.volta) o.itens.push(Orc._item({ tipo: 'traslado', desc: `Traslado ${p.para || 'Hotel'} → ${p.de || 'Aeroporto'}`, data: p.voltaData || '', hora: oyHm(p.voltaHora), voo: p.voltaVoo || '', pax: oyPax(o) || 1, valor: 0, sugestao: true, obs: 'O cliente pediu — escolha no catálogo e ponha o valor' }));
   } else {
-    /* a viagem sob medida (a Sandra tem o passeio "sob-medida") e o passeio do "pedir valor" */
+    /* a viagem sob medida (o passeio "sob-medida", onde existe) e o passeio do "pedir valor" */
     if (p.tipo === 'sobmedida' && Tours.get('sob-medida')) { const n = oyDoCatalogo(o, 'sob-medida', { data: '' }); if (n) { n.sugestao = true; o.itens.push(n); } }
     if (p.tourId && Tours.get(p.tourId)) { const n = oyDoCatalogo(o, p.tourId, { data: p.data || '' }); if (n) { n.sugestao = true; o.itens.push(n); } }
     for (const nome of p.passeios || []) {
@@ -1395,7 +1394,7 @@ function oyDoPedido(p) {
   return Orc.get(o.id);
 }
 
-/* ---------- ler uma conversa colada do WhatsApp (o "apanhador" da base EmRoma) ----------
+/* ---------- ler uma conversa colada do WhatsApp (o "apanhador" da base de operação) ----------
    Tira nome, telefone, datas (inclusive o período "de 12 a 18 de março"), adultos e crianças, voo,
    e os passeios DELA que o cliente citou pelo nome. Nunca responde nada, nunca inventa. */
 const MESES_PT = ['janeiro', 'fevereiro', 'marco', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];

@@ -29,7 +29,7 @@ function supaFetch(path, opts = {}) {
      como se estivesse offline. E o modo "prototipo" de um cliente novo. */
   if (!SUPA_URL) return Promise.reject(new Error('sem nuvem configurada (config.js)'));
   /* Login vencido (celular parado a noite toda): renova ANTES de falar com o banco.
-     Mandar o vencido = 401 = a tela entende "não existe" (a Yalla pagou isso em 29/10/2026). */
+     Mandar o vencido = 401 = a tela entende "não existe" (achado em 29/10/2026). */
   if (!opts.visitante && typeof authVencida === 'function' && authVencida() && typeof authEnsure === 'function')
     return authEnsure().then(() => supaFetchJa(path, opts), () => supaFetchJa(path, opts));
   return supaFetchJa(path, opts);
@@ -195,7 +195,7 @@ function marcaSincronizada(id) {
 }
 
 /* o PATCH de uma reserva espera o POST dela: saindo juntos, o PATCH chegava antes, achava 0 linhas e
-   o que ela mudou (sinal, textos do orçamento) se perdia (Yalla, 29/10/2026) */
+   o que ela mudou (sinal, textos do orçamento) se perdia (29/10/2026) */
 const _postando = new Map();
 function cloudPushBooking(b) {
   const p = _cloudPushBooking(b);
