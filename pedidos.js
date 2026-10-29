@@ -151,23 +151,35 @@ function pdEnviado(p, chegou) {
     <div class="okc">✓</div>
     <h2 class="okh">${chegou ? 'Pedido enviado' : 'Quase lá'}</h2>
     <p class="hint center">${chegou
-      ? `${esc(guiaNome())} já recebeu e responde com ${p.tipo === 'transfer' ? 'o valor do transfer' : 'uma proposta de roteiro'} pelo WhatsApp ou e-mail.`
+      ? `${esc(guiaNome())} já recebeu e responde com ${p.tipo === 'transfer' ? 'o valor do transfer' : 'uma proposta de roteiro'} pelo WhatsApp ou e-mail. O WhatsApp dela também abriu com o pedido pronto: aperte enviar para falar direto com ela.`
       : `O WhatsApp de ${esc(guiaNome())} abriu com o pedido pronto — é só apertar enviar. Não abriu? Toque abaixo.`}</p>
-    <a class="cta" id="pdWa" target="_blank" rel="noopener" href="${esc(wa)}">${ICONE_WA_BTN} ${chegou ? 'Falar no WhatsApp agora' : 'Mandar no WhatsApp'}</a>
+    <a class="cta" id="pdWa" target="_blank" rel="noopener" href="${esc(wa)}">${ICONE_WA_BTN} ${chegou ? 'Abrir o WhatsApp de novo' : 'Mandar no WhatsApp'}</a>
     <button class="cta soft" id="pdPasseios">${t('seeTours')}</button>
   </main>`;
   $('#bk').onclick = () => go('/');
   $('#pdPasseios').onclick = () => go('/tours');
 }
+/* do jeito da Milla (29/10/2026, "quando apertei pra enviar pra Dulcineia não enviou"): o WhatsApp
+   dela abre JÁ, no mesmo toque, com o pedido pronto (depois de um await o iPhone bloqueia a janela
+   nova) — e o pedido vai também para o banco, que avisa ela e põe no painel. Os dois caminhos:
+   se um falhar, o outro chega. */
 async function pdEnvia(tipo, R) {
   const p = Pedidos.cria(tipo, R);
+  window.open(waLink(p.ficha), '_blank');
   const nuvem = typeof temNuvem === 'function' && temNuvem() && typeof cloudPushPedido === 'function';
-  /* sem nuvem o WhatsApp é o único caminho: abre JÁ, no mesmo toque
-     (depois de um await o iPhone bloqueia a janela nova) */
-  if (!nuvem) { window.open(waLink(p.ficha), '_blank'); return pdEnviado(p, false); }
+  if (!nuvem) return pdEnviado(p, false);
   const b = $('#pdEnviar'); if (b) { b.disabled = true; b.textContent = 'Enviando…'; }
   const r = await cloudPushPedido(p);
   pdEnviado(p, !!(r && r.ok));
+}
+/* tocar num passeio, tema ou contador redesenha o formulário: na MESMA altura e sem a animação de
+   entrada (antes cada toque fazia a página inteira piscar e deslizar) */
+function pdRedesenha(view) {
+  const y = scrollY;
+  document.body.classList.add('sem-anima');
+  view();
+  scrollTo(0, y);
+  requestAnimationFrame(() => { scrollTo(0, y); setTimeout(() => document.body.classList.remove('sem-anima'), 450); });
 }
 
 /* TRANSFER */
@@ -239,13 +251,13 @@ function viewTransfer() {
     R.tipoTrf = v;
     if (auto(R.de)) R.de = v === 'chegada' ? TRF_AEROPORTO : v === 'saida' ? '' : v === 'cidades' ? 'Berlim' : '';
     if (auto(R.para)) R.para = v === 'saida' ? TRF_AEROPORTO : '';
-    viewTransfer();
+    pdRedesenha(viewTransfer);
   });
-  $$('[data-at]').forEach(b => b.onclick = () => { guarda(); R[b.dataset.at] = b.dataset.v; viewTransfer(); });
-  $('#trVolta').onchange = () => { guarda(); viewTransfer(); };
+  $$('[data-at]').forEach(b => b.onclick = () => { guarda(); R[b.dataset.at] = b.dataset.v; pdRedesenha(viewTransfer); });
+  $('#trVolta').onchange = () => { guarda(); pdRedesenha(viewTransfer); };
   $$('[data-rc]').forEach(b => b.onclick = () => {
     guarda(); const k = b.dataset.rc;
-    R[k] = Math.max(k === 'adultos' ? 1 : 0, Math.min(60, R[k] + +b.dataset.d)); viewTransfer();
+    R[k] = Math.max(k === 'adultos' ? 1 : 0, Math.min(60, R[k] + +b.dataset.d)); pdRedesenha(viewTransfer);
   });
   $('#pdEnviar').onclick = () => {
     guarda();
@@ -324,13 +336,13 @@ function viewRoteiro() {
     guarda();
     const g = R[b.dataset.g], v = b.dataset.v, i = g.indexOf(v);
     if (i >= 0) g.splice(i, 1); else g.push(v);
-    viewRoteiro();
+    pdRedesenha(viewRoteiro);
   });
-  $$('[data-periodo]').forEach(b => b.onclick = () => { guarda(); R.periodo = R.periodo === b.dataset.periodo ? '' : b.dataset.periodo; viewRoteiro(); });
-  $$('[data-ritmo]').forEach(b => b.onclick = () => { guarda(); R.ritmo = b.dataset.ritmo; viewRoteiro(); });
+  $$('[data-periodo]').forEach(b => b.onclick = () => { guarda(); R.periodo = R.periodo === b.dataset.periodo ? '' : b.dataset.periodo; pdRedesenha(viewRoteiro); });
+  $$('[data-ritmo]').forEach(b => b.onclick = () => { guarda(); R.ritmo = b.dataset.ritmo; pdRedesenha(viewRoteiro); });
   $$('[data-rc]').forEach(b => b.onclick = () => {
     guarda(); const k = b.dataset.rc;
-    R[k] = Math.max(k === 'adultos' ? 1 : 0, Math.min(60, R[k] + +b.dataset.d)); viewRoteiro();
+    R[k] = Math.max(k === 'adultos' ? 1 : 0, Math.min(60, R[k] + +b.dataset.d)); pdRedesenha(viewRoteiro);
   });
   $('#pdEnviar').onclick = () => {
     guarda();

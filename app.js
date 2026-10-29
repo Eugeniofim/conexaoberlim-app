@@ -281,7 +281,7 @@ function route() {
   /* rotas dos módulos (o kit da viagem do cliente: #/k/… e #/kt/…): publico-berlim.js e kit-berlim.js */
   if (window.ROTAS_EXTRA && typeof ROTAS_EXTRA[p[0]] === 'function') {
     ROTAS_EXTRA[p[0]](p.slice(1));
-    document.body.classList.toggle('em-adm', false); faixaAcimaDaBarra(); scrollTo(0, 0); return;
+    document.body.classList.toggle('em-adm', false); faixaAcimaDaBarra(); scrollTo(0, 0); _assinaturaTela = assinaturaTela(); return;
   }
   if (p[0] === 'novasenha') viewNewPass();
   else if (p[0] === 'login') viewLogin();
@@ -299,6 +299,51 @@ function route() {
   document.body.classList.toggle('em-adm', p[0] === 'adm');
   faixaAcimaDaBarra();
   scrollTo(0, 0);
+  _assinaturaTela = assinaturaTela();
+}
+
+/* A TELA NÃO SOBE MAIS SOZINHA (29/10/2026 — o mesmo conserto da Yalla de 28/10). Ele montou um
+   roteiro de teste e "o app joga a imagem pra cima e apaga o que fiz": de 25 em 25 s (e ao voltar
+   para o app) a nuvem chamava route() MESMO SEM NADA NOVO — a tela voltava ao topo, o que estava
+   digitado e ainda não guardado sumia, e o "Enviar" achava nome e WhatsApp vazios. Agora: (1) só
+   redesenha se o que aparece na tela mudou de verdade; (2) na mesma altura e sem a animação de
+   entrada; (3) nunca por cima de quem está digitando ou preenchendo um pedido; (4) o que foi
+   digitado e não salvo volta para o campo, se a nuvem não mudou aquele campo. */
+let _assinaturaTela = '';
+function assinaturaTela() {
+  try {
+    const priv = typeof ITENS_COLS !== 'undefined' ? ITENS_COLS.map(k => DB[k]) : [];
+    return JSON.stringify([DB.tours, DB.rules, DB.departures, DB.blocks, DB.coupons, DB.settings, DB.bookings, DB.seatCounts, DB.pedidos, DB.orcamentos, priv]);
+  } catch (e) { return String(Math.random()); }
+}
+function _camposSujos() {
+  const l = [];
+  document.querySelectorAll('#app input[id], #app textarea[id], #app select[id]').forEach(e => {
+    if (e.type === 'checkbox' || e.type === 'radio') { if (e.checked !== e.defaultChecked) l.push({ id: e.id, chk: e.checked, ori: e.defaultChecked }); }
+    else if (e.type === 'file') return;
+    else if (e.tagName === 'SELECT') { const d = [...e.options].find(o => o.defaultSelected); const ori = d ? d.value : ''; if (e.value !== ori) l.push({ id: e.id, v: e.value, ori, sel: true }); }
+    else if (e.value !== e.defaultValue) l.push({ id: e.id, v: e.value, ori: e.defaultValue });
+  });
+  return l;
+}
+function _devolveCampos(l) {
+  for (const c of l) {
+    const e = document.getElementById(c.id); if (!e) continue;
+    if ('chk' in c) { if (e.defaultChecked === c.ori) e.checked = c.chk; continue; }
+    const ori = c.sel ? ((([...e.options].find(o => o.defaultSelected)) || {}).value || '') : e.defaultValue;
+    if (ori === c.ori) e.value = c.v;   /* a nuvem não mexeu neste campo: o que foi digitado fica */
+  }
+}
+function redesenhaSuave(forcar) {
+  if (!forcar && assinaturaTela() === _assinaturaTela) return false;          /* nada mudou: a tela fica quieta */
+  if (isBusyEditing()) { pendingSync = true; return false; }
+  const y = scrollY, sujos = _camposSujos();
+  document.body.classList.add('sem-anima');
+  route();
+  _devolveCampos(sujos);
+  scrollTo(0, y);
+  requestAnimationFrame(() => { scrollTo(0, y); setTimeout(() => document.body.classList.remove('sem-anima'), 450); });
+  return true;
 }
 
 /* A faixa do rodape (proposta / demonstracao) e a barra de abas do painel
@@ -337,7 +382,7 @@ function viewHub() {
   app.innerHTML = `
   <div class="hub">
     <div class="hub-bg" style="background-image:url(${esc(DB.settings.homePhoto || 'home.jpg')})"></div>
-    ${DB.settings.homePhoto && DB.settings.homePhotoCr ? `<small class="thcr hubcr">${esc(DB.settings.homePhotoCr)}</small>` : ''}
+    ${fotoCreditoHtml(DB.settings.homePhoto, 'thcr hubcr')}
     <div class="hub-in">
       <div class="vcard">
         <div class="hub-brand">${logoFull({ mark: 46, sub: esc(guiaBase()) })}</div>
@@ -598,7 +643,7 @@ function viewTour(id) {
   <!-- CAPA: como a primeira pagina do PDF dela — imagem cheia, titulo por cima -->
   <div class="tourhero" style="background-image:url(${esc(x.photo)})">
     <div class="thveil"></div>
-    ${x.photoCr ? `<small class="thcr">${esc(x.photoCr)}</small>` : ''}
+    ${fotoCreditoHtml(x.photo, 'thcr')}
     <div class="thin">
       <h1>${esc(tl(x.name))}</h1>
       ${x.tagline && tl(x.tagline)
@@ -620,7 +665,7 @@ function viewTour(id) {
       <ol class="stopgrid">
         ${stops.map((p, i) => `
           <li class="stopcardc">
-            ${p.ph ? `<span class="scph" style="background-image:url(${esc(p.ph)})" role="img" aria-label="${esc(L(p.n))}">${p.cr ? `<small class="sccr">${esc(p.cr)}</small>` : ''}</span>`
+            ${p.ph ? `<span class="scph" style="background-image:url(${esc(p.ph)})" role="img" aria-label="${esc(L(p.n))}">${fotoCreditoHtml(p.ph, 'sccr')}</span>`
                    : `<span class="scph none" aria-hidden="true"></span>`}
             <div class="scbody">
               <span class="scnum2">${i + 1}</span>
@@ -1122,7 +1167,7 @@ function onCloudRejected() {
 
 function admShell(tab, inner) {
   /* a sincronia por linha (nuvem-itens.js) liga na primeira tela do painel, com a dona logada */
-  if (typeof itLigar === 'function') itLigar(() => { if (isBusyEditing()) pendingSync = true; else route(); });
+  if (typeof itLigar === 'function') itLigar(() => redesenhaSuave());
   app.innerHTML = `
   <div class="adm">
     <aside class="rail">
@@ -1514,7 +1559,8 @@ function admTourEdit(id) {
       /* guarda qual portugues gerou o ingles atual: se nao mudar,
          nao traduz de novo e o ajuste manual dela sobrevive */
       trSig: x.trSig || {},
-      photo: newPhoto || x.photo, status,
+      /* foto nova é DELA: o crédito da foto antiga (Wikimedia) não vale mais */
+      photo: newPhoto || x.photo, ...(newPhoto ? { photoCr: '' } : {}), status,
       duration: $('#fDur').value.trim(), distance: $('#fDist').value.trim(),
       tagline:   par('#fTagPt', '#fTagEn'),
       priceNote: par('#fPNotePt', '#fPNoteEn'),
@@ -2792,6 +2838,7 @@ function isBusyEditing() {
   const S = viewTour._s;
   if (h.startsWith('#/tour/') && S && (S.step > 1 || S.date || S.time)) return true;
   if (/^#\/adm\/tours\//.test(h)) return true;                      // editando passeio
+  if (/^#\/adm\/orcamentos\/./.test(h)) return true;               // montando orçamento
   const ae = document.activeElement;
   if (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) return true; // digitando
   return false;
@@ -2805,7 +2852,7 @@ addEventListener('hashchange', () => {
    Nao bloqueia o arranque: o app abre com o preco em euro e o valor em real
    entra quando a cotacao chegar. Se nunca chegar, simplesmente nao aparece. */
 if (typeof fxAtualiza === 'function') {
-  fxAtualiza().then((c) => { if (c && LANG === 'pt' && !isBusyEditing()) route(); });
+  fxAtualiza().then((c) => { if (c && LANG === 'pt' && !isBusyEditing()) redesenhaSuave(true); });
 }
 
 /* ---------- nuvem ---------- */
@@ -2816,9 +2863,8 @@ cloudStart((r) => {
     toast('🎉 ' + t('xNovaReserva') + ': ' + b.name + ' · ' + eur(b.total));
     if (typeof avisoReservaNaTela === 'function') avisoReservaNaTela();
   }
-  /* re-render seguro: nunca por cima de trabalho em andamento */
-  if (isBusyEditing()) { pendingSync = true; return; }
-route();
+  /* re-render seguro: só se mudou algo, na mesma altura, nunca por cima de trabalho em andamento */
+  redesenhaSuave();
 });
 
 /* FAIXA DE DEMONSTRACAO — enquanto nao ha banco (mesma da Ingrid e do Mario).

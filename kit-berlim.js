@@ -289,7 +289,8 @@ function kitCompleta(d) {
   d.servicos = (d.servicos || []).map(s => Object.assign({}, s, {
     levar: Array.isArray(s.levar) && s.levar.length ? s.levar : (KIT_LEVAR[s.tipo] || KIT_LEVAR.outro),
     guia: s.guia || ((typeof guiaNome === 'function' && guiaNome()) || ''),
-    fotoCr: s.fotoCr || (s.foto ? ((DB.tours || []).find(t => t && t.photo === s.foto) || {}).photoCr || '' : ''),
+    /* o crédito sai da própria foto (fotos-credito.js): foto dela não leva crédito de ninguém */
+    fotoCr: typeof fotoCreditoTexto === 'function' ? fotoCreditoTexto(s.foto) : s.fotoCr || '',
   }));
   return d;
 }

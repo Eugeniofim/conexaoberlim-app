@@ -225,7 +225,8 @@ const oyPt = (a) => !a ? '' : typeof a === 'string' ? a : (a.pt || a.en || '');
 const oyLista = (a) => (a && !Array.isArray(a) && (a.pt || a.en) ? (a.pt || a.en) : Array.isArray(a) ? a : []).map(s => oyPt(s).trim()).filter(Boolean);
 const oyParagrafo = (t) => (String(t || '').split(/\n\s*\n/)[0] || '').trim();
 const oyFoto = (p) => /^data:/i.test(String(p || '')) ? '' : String(p || '');
-const oyFotosDe = (x) => [...new Set([x && x.photo, ...((x && x.fotos) || []), ...((x && x.gallery) || [])].map(oyFoto).filter(Boolean))];
+/* as fotos das paradas do roteiro também servem (29/10/2026: o passeio dela tem 4–5 paradas com foto) */
+const oyFotosDe = (x) => [...new Set([x && x.photo, ...((x && x.fotos) || []), ...((x && x.gallery) || []), ...((x && x.stops) || []).map(s => s && s.ph)].map(oyFoto).filter(Boolean))];
 /* a hora do jeito que ela digitar: 14:30, 14h30, 14.30, 1430, 930, 14h, 14 → "14:30"/"09:30"/"14:00". Impossível → vazio. */
 const oyHm = (h) => {
   const t = String(h || '').trim().toLowerCase(), ok = (H, M) => +H <= 23 && +M <= 59 ? String(+H).padStart(2, '0') + ':' + String(+M).padStart(2, '0') : '';
@@ -532,6 +533,12 @@ function ppPeriodo(d) {
 const ppHoras = (i) => i.hora ? (i.horaFim ? `${i.hora}–${i.horaFim}` : i.hora) : '';
 const ppEsc = (t) => esc(String(t || '')).replace(/\n/g, '<br>');
 const ppCssUrl = (f) => String(f || '').replace(/'/g, '%27');
+/* as fotos do Wikimedia levam crédito com link (autor e licença); as dela, nenhum */
+function ppCreditos(fs) {
+  if (typeof fotoCredito !== 'function') return '';
+  const cs = [...new Set(fs)].map(fotoCredito).filter((c, k, l) => c && l.findIndex(z => z && z.pagina === c.pagina) === k);
+  return cs.length ? `<p class="pp-cred">Fotos: ${cs.map(c => `<a href="${esc(c.pagina)}" target="_blank" rel="noopener">${esc(c.autor)} (${esc(c.licenca)})</a>`).join(', ')} · Wikimedia Commons</p>` : '';
+}
 function ppHtml(d) {
   const fotos = [...new Set(d.itens.map(i => i.foto).filter(Boolean))];
   /* a capa: as fotos dos serviços e as da marca dela; com menos de 3, repete (nunca foto de outro lugar) */
@@ -589,6 +596,7 @@ function ppHtml(d) {
     ${d.diferencial ? `<h3 class="pp-ouro">O diferencial ${esc(d.negocio)}</h3><p>${ppEsc(d.diferencial)}</p>` : ''}
     <p class="pp-forte">${d.validade ? `Cotação válida até ${esc(d.validade.split('-').reverse().join('/'))}. ` : ''}Valores em ${esc(mNome)}.</p>
   </section>
+  ${ppCreditos([...capa, ...fotos])}
   ${contato.length ? `<footer class="pp-pe">${contato.map(c => `<span>${esc(c)}</span>`).join('<i aria-hidden="true">|</i>')}</footer>` : ''}`;
 }
 
@@ -657,6 +665,8 @@ function ppCss() {
   .pp-ind{background:#fff;color:var(--pp-escuro);border-radius:10px;padding:14px;text-align:center;font-weight:800;letter-spacing:.02em}
   .pp-pe{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 0;font-size:12.5px;color:var(--pp-t);padding:18px 0 4px}
   .pp-pe span{white-space:nowrap}
+  .pp-cred{margin:14px 5.5% 0;font-size:10.5px;line-height:1.5;color:var(--pp-t);opacity:.8;text-align:center}
+  .pp-cred a{color:inherit;text-decoration:none}
   .pp-pe i{font-style:normal;margin:0 8px;opacity:.6}
   .pp-pg{background:#F6F3EE;color-scheme:light;min-height:100svh;padding-bottom:96px}
   .pp-topo{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:10px;padding:max(10px,env(safe-area-inset-top)) 16px 10px;background:#fff;color:#1C1A17;border-bottom:1px solid #E6DED2}

@@ -4,9 +4,9 @@
    Para publicar uma atualização: subir os arquivos novos e trocar a VERSION. */
 'use strict';
 
-const VERSION = 'berlim-v0.8.1';
+const VERSION = 'berlim-v0.8.2';
 const CORE = [
-  './', './index.html', './config.js', './app.js', './fx.js', './pix.js', './qr.js', './qrcode.js', './traduz.js', './idiomas.js', './store.js', './nuvem-itens.js', './cores.js', './pedidos.js', './parceiros.js', './depoimentos.js', './hoje.js', './berlim-ia.js', './assistente-voz.js', './orcamento-premium.js', './orcamento-premium-ia.js', './assistente.js', './auth.js', './logo.js', './cloud.js', './i18n.js', './avisos.js', './creditos.js', './ficha.js', './publico-berlim.js', './pdf-berlim.js', './kit-berlim.js', './tokens.css', './fontes/arapey-regular.woff2', './fontes/arapey-italic.woff2', './fontes/instrument-serif-regular.woff2', './fontes/instrument-serif-italic.woff2',
+  './', './index.html', './config.js', './app.js', './fx.js', './pix.js', './qr.js', './qrcode.js', './traduz.js', './idiomas.js', './store.js', './nuvem-itens.js', './cores.js', './pedidos.js', './parceiros.js', './depoimentos.js', './hoje.js', './berlim-ia.js', './assistente-voz.js', './orcamento-premium.js', './orcamento-premium-ia.js', './fotos-nuvem.js', './fotos-credito.js', './assistente.js', './auth.js', './logo.js', './cloud.js', './i18n.js', './avisos.js', './creditos.js', './ficha.js', './publico-berlim.js', './pdf-berlim.js', './kit-berlim.js', './tokens.css', './fontes/arapey-regular.woff2', './fontes/arapey-italic.woff2', './fontes/instrument-serif-regular.woff2', './fontes/instrument-serif-italic.woff2',
   './manifest.webmanifest', './arte/selo-capsula.svg', './arte/logo-horizontal.svg', './arte/logo-palavra.svg', './arte/favicon.svg', './capa.jpg', './home.jpg', './og.jpg', './guia.jpg', './exemplo-1.jpg', './exemplo-2.jpg', './exemplo-3.jpg',
 ];
 
