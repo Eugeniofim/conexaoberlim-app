@@ -444,7 +444,19 @@ function isoToday() { return new Date().toISOString().slice(0, 10); }
 function addDays(iso, n) { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }
 
 /* turnos do dia (config.js guia.turnos → DB.settings.turnos) */
-function turnos() { return (DB && DB.settings && DB.settings.turnos) || GUIA_CFG.turnos || []; }
+function turnos() {
+  const l = (DB && DB.settings && DB.settings.turnos) || GUIA_CFG.turnos || [];
+  /* o tipo de visita, o limite e o período vêm do config.js mesmo para os turnos já gravados nos
+     ajustes (gravados antes de 29/10, sem esses campos) */
+  const cfg = GUIA_CFG.turnos || [];
+  return l.map(tu => { const c = cfg.find(z => z.hora === tu.hora); return c ? { ...c, ...tu } : tu; });
+}
+/* o turno existe nesse dia? (a tarde em grupo só de 10/03 a 10/10) */
+function turnoNoDia(tu, iso) {
+  if (!tu || !tu.de || !tu.ate || !iso) return true;
+  const md = String(iso).slice(5, 10);
+  return tu.de <= tu.ate ? md >= tu.de && md <= tu.ate : md >= tu.de || md <= tu.ate;
+}
 function turnoDaHora(h) { return turnos().find(x => x.hora === h) || null; }
 /* agora em Berlim (AAAA-MM-DD e HH:MM) — turno que já começou não se reserva */
 function agoraBerlim() {
@@ -519,7 +531,7 @@ const Cal = {
       if (dep.date >= fromIso && dep.date <= toIso && !Cal.blocked(dep.date, dep.time)) out.push(dep);
     }
     out.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
-    return out;
+    return out.filter(d => turnoNoDia(turnoDaHora(d.time), d.date));
   },
 
   seatsLeft(tourId, date, time, capacity) {
@@ -527,9 +539,17 @@ const Cal = {
        qualquer reserva naquele dia e horário, em QUALQUER passeio, ocupa o
        turno inteiro. Livre = cabe o grupo todo (capacity); ocupado = 0. */
     if (turnoExclusivo()) {
-      const temLocal = DB.bookings.some(b => b.date === date && b.time === time && b.status === 'confirmed');
-      const temNuvem = Array.isArray(DB.seatCounts) && DB.seatCounts.some(c => c.date === date && c.time === time && +c.pax > 0);
-      return temLocal || temNuvem ? 0 : capacity;
+      const doTurno = DB.bookings.filter(b => b.date === date && b.time === time && b.status === 'confirmed');
+      const daNuvem = Array.isArray(DB.seatCounts) ? DB.seatCounts.filter(c => c.date === date && c.time === time && +c.pax > 0) : [];
+      const tu = turnoDaHora(time);
+      /* VISITA EM GRUPO (a tarde): a MESMA visita junta pessoas até o limite (12); outra visita no
+         mesmo turno não dá, porque ela é uma só. As vagas são o limite menos quem já está. */
+      if (tu && tu.modo === 'grupo') {
+        if (doTurno.some(b => b.tourId !== tourId) || daNuvem.some(c => c.tourId !== tourId)) return 0;
+        const ja = Math.max(doTurno.reduce((s, b) => s + (+b.pax || 0), 0), daNuvem.reduce((s, c) => s + (+c.pax || 0), 0));
+        return Math.max(0, Math.min(capacity, tu.max || capacity) - ja);
+      }
+      return doTurno.length || daNuvem.length ? 0 : capacity;
     }
     /* logada: conta pelas reservas. Visitante: usa a contagem pública,
        que não expõe nome nem telefone de ninguém. */

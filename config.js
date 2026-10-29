@@ -95,9 +95,13 @@ var APP_CONFIG = {
        Cada turno atende UM grupo — a mesma família pode pegar os dois, ou
        vêm grupos diferentes. E ela é uma só: turno reservado em qualquer
        passeio fica ocupado em todos (turnoExclusivo). */
+    /* 29/10/2026 (ele, pela Dulcineia): a MANHÃ é a visita privativa (só o grupo
+       do cliente); a TARDE é a visita em grupo, até 12 pessoas, e só de 10/03 a
+       10/10 — fora disso, só manhã. O cliente escolhe o tipo de visita e o turno
+       vem junto. modo: 'privativa' | 'grupo'; max: limite do grupo; de/ate: MM-DD. */
     turnos: [
-      { hora: '09:30', fim: '13:30', nome: 'Manhã' },
-      { hora: '14:00', fim: '18:00', nome: 'Tarde' },
+      { hora: '09:30', fim: '13:30', nome: 'Manhã', modo: 'privativa' },
+      { hora: '14:00', fim: '18:00', nome: 'Tarde', modo: 'grupo', max: 12, de: '03-10', ate: '10-10' },
     ],
     turnoExclusivo: true,
     /* temporada dos passeios: de 1º de março a 31 de outubro (Dulcineia, 24/09/2026).

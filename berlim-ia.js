@@ -137,6 +137,8 @@ const _bxSistemaBase = iaSistema;
 iaSistema = function () {
   const blocos = _bxSistemaBase();
   const tu = (typeof turnos === 'function' ? turnos() : []).map(t => `${t.nome} ${t.hora}–${t.fim}`).join(' e ');
+  const gr = (typeof turnos === 'function' ? turnos() : []).find(t => t.modo === 'grupo');
+  const dm = (md) => String(md || '').split('-').reverse().join('/');
   const tp = (typeof GUIA_CFG !== 'undefined' && GUIA_CFG.temporada) || {};
   blocos.push({ type: 'text', text: `## Você alcança TODAS as abas do painel
 - Hoje, Agenda, Meus passeios, Reservas, Cupons: ver_passeios, ver_agenda, ver_reservas, ver_cupons, ver_bloqueios e as ferramentas de passeio, horário, bloqueio e cupom.
@@ -152,6 +154,6 @@ iaSistema = function () {
 - Se você escrever "anotei", "registrei" ou "marquei", você TEM que ter chamado a ferramenta neste mesmo turno.
 
 ## Regras do negócio (Conexão Berlim)
-Visitas privativas em português, em dois turnos por dia${tu ? ': ' + tu : ''}. Um grupo por turno e uma guia só: turno reservado em QUALQUER passeio fica ocupado em todos; a mesma família pode pegar manhã e tarde. Temporada de ${tp.de ? tp.de.split('-').reverse().join('/') : 'março'} a ${tp.ate ? tp.ate.split('-').reverse().join('/') : 'outubro'}. Preço 0 = sob consulta: o valor é combinado pelo WhatsApp dela; nunca invente preço. Pagamento por Pix. Antes de sugerir uma data, olhe ver_agenda.` });
+Visitas em português, em dois turnos por dia${tu ? ': ' + tu : ''}. ${gr ? `A manhã é a VISITA PRIVATIVA: um grupo só, e reserva em QUALQUER passeio ocupa a manhã em todos. A tarde é a VISITA EM GRUPO: até ${gr.max || 12} pessoas juntas no MESMO passeio (outro passeio na mesma tarde não dá — ela é uma guia só)${gr.de ? `, e só de ${dm(gr.de)} a ${dm(gr.ate)}; fora disso, só manhã` : ''}.` : 'Um grupo por turno e uma guia só: turno reservado em QUALQUER passeio fica ocupado em todos; a mesma família pode pegar manhã e tarde.'} Temporada de ${tp.de ? tp.de.split('-').reverse().join('/') : 'março'} a ${tp.ate ? tp.ate.split('-').reverse().join('/') : 'outubro'}. Preço 0 = sob consulta: o valor é combinado pelo WhatsApp dela; nunca invente preço. Pagamento por Pix. Antes de sugerir uma data, olhe ver_agenda.` });
   return blocos;
 };

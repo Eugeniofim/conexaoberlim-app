@@ -507,7 +507,11 @@ function tipoLabel(type) {
   if (c[type]) return tl(c[type]);
   return t(TYPE_LABEL[type] || 'fWalk');
 }
-function grupoTxt(x) { return x.privativo ? t('privateTour') : `${t('upTo')} ${x.max} ${t('people')}`; }
+function grupoTxt(x) { return turnoGrupo() ? t('modoPrivOuGrupo') : x.privativo ? t('privateTour') : `${t('upTo')} ${x.max} ${t('people')}`; }
+/* o turno da visita em grupo (a tarde), se houver */
+const turnoGrupo = () => turnos().find(tu => tu.modo === 'grupo') || null;
+const ddmm = (md) => String(md || '').split('-').reverse().join('/');
+const turnoModoTxt = (tu) => tu.modo === 'grupo' ? t('modoGrupoCurto', { n: tu.max || '' }) : tu.modo ? t('modoPrivCurto') : '';
 
 function viewShowcase() {
   const tours = Tours.live();
@@ -686,11 +690,12 @@ function viewTour(id) {
           <div><small>${t('fLeaves')}</small><b>${esc(noIdioma(x.meeting))}</b>
             ${x.pickup ? `<small class="sub">${t('pickupHotel')}</small>`
               : `<a class="linkmap" href="${mapLink(noIdioma(x.meeting))}" target="_blank" rel="noopener">${t('openMap')} ↗</a>`}</div>
-          ${turnos().length ? `<div><small>${t('fTurnos')}</small><b>${turnos().map(tu => `${esc(tu.nome)} ${tu.hora}–${tu.fim}`).join('<br>')}</b>
-            <small class="sub">${t('turnoUmGrupo')}</small></div>` : ''}
+          ${turnos().length ? `<div><small>${t('fTurnos')}</small><b>${turnos().map(tu => `${esc(tu.nome)} ${tu.hora}–${tu.fim}${tu.modo ? ' · ' + esc(turnoModoTxt(tu)) : ''}`).join('<br>')}</b>
+            <small class="sub">${turnoGrupo() && turnoGrupo().de ? t('grupoSoDe', { de: ddmm(turnoGrupo().de), ate: ddmm(turnoGrupo().ate) }) : t('turnoUmGrupo')}</small></div>` : ''}
           ${x.duration ? `<div><small>${t('fHours')}</small><b>${esc(x.duration)}</b></div>` : ''}
           <div><small>${t('fGroup')}</small><b>${grupoTxt(x)}</b>
-            ${x.privativo ? `<small class="sub">${t('privateSub')}</small>`
+            ${turnoGrupo() ? `<small class="sub">${t('grupoAte', { n: turnoGrupo().max || x.max })}</small>`
+              : x.privativo ? `<small class="sub">${t('privateSub')}</small>`
               : x.min > 1 ? `<small class="sub">${t('minNote', { n: x.min })}</small>` : ''}</div>
           <div><small>${t('fLang')}</small><b>${esc((typeof APP_CONFIG !== 'undefined' && APP_CONFIG.guia && APP_CONFIG.guia.idiomas) || 'PT · EN')}</b></div>
         </div>
@@ -922,9 +927,11 @@ function renderBook() {
      Sem datas publicadas, direto para o WhatsApp. */
   const temDatas = Cal.departures(x.id, isoToday(), addDays(isoToday(), 430)).some(d => !jaComecou(d.date, d.time));
   if (sobConsulta(x) && temDatas && S.step >= 2) {
-    const tu = turnoDaHora(S.time);
-    const quando = fmtDate(S.date) + ' · ' + (tu ? `${tu.nome} (${tu.hora}–${tu.fim})` : S.time);
-    const msg = t('waAskQuoteTurno', { tour: tl(x.name), data: fmtDate(S.date), turno: tu ? `${tu.nome.toLowerCase()} (${tu.hora}–${tu.fim})` : S.time, n: S.pax });
+    const tu = turnoDaHora(S.time), modoTxt = tu && tu.modo ? t(tu.modo === 'grupo' ? 'modoGrupoMsg' : 'modoPrivMsg') : '';
+    const limite = Math.min(x.max || 20, S.cap || 99);
+    if (S.pax > limite) S.pax = limite;
+    const quando = fmtDate(S.date) + ' · ' + (tu ? `${tu.nome} (${tu.hora}–${tu.fim})` : S.time) + (modoTxt ? ' · ' + modoTxt : '');
+    const msg = t('waAskQuoteTurno', { tour: tl(x.name), data: fmtDate(S.date), turno: (tu ? `${tu.nome.toLowerCase()} (${tu.hora}–${tu.fim})` : S.time) + (modoTxt ? ', ' + modoTxt : ''), n: S.pax });
     book.innerHTML = `
       <div class="bhead"><span class="bprice">${t('onRequest')}</span></div>
       <div class="bstep">${t('step2')}</div>
@@ -935,7 +942,7 @@ function renderBook() {
       <a class="cta wide" target="_blank" rel="noopener" href="${waLink(msg)}">${t('askQuoteTurnoBtn')}</a>
       <button class="linkbtn" id="back1" aria-label="${t('back')}">← ${t('back')}</button>`;
     $('#mn').onclick = () => { if (S.pax > 1) { S.pax--; renderBook(); } };
-    $('#pl').onclick = () => { if (S.pax < (x.max || 20)) { S.pax++; renderBook(); } else toast(t('maxNote', { n: x.max })); };
+    $('#pl').onclick = () => { if (S.pax < limite) { S.pax++; renderBook(); } else toast(t('maxNote', { n: limite })); };
     $('#back1').onclick = () => { S.step = 1; renderBook(); };
     return;
   }
@@ -981,17 +988,25 @@ function renderBook() {
     });
     $('#next1')?.addEventListener('click', () => { S.step = 2; renderBook(); });
 
+    /* com tipo de visita nos turnos (29/10/2026): o cliente escolhe "Visita privativa" (manhã) ou
+       "Visita em grupo" (tarde, até 12, só no período dela) — o turno vem junto */
     function timesHtml(list) {
-      const exclusivo = turnoExclusivo();
-      return `<p class="hint">${t(turnos().length ? 'pickTurno' : 'pickTime')}</p><div class="times ${turnos().length ? 'turnos' : ''}">` + list.map(d => {
+      const exclusivo = turnoExclusivo(), comModo = list.some(d => (turnoDaHora(d.time) || {}).modo);
+      const gr = turnoGrupo(), semGrupoHoje = comModo && gr && gr.de && !list.some(d => d.time === gr.hora);
+      return `<p class="hint">${t(comModo ? 'pickModo' : turnos().length ? 'pickTurno' : 'pickTime')}</p><div class="times ${turnos().length ? 'turnos' : ''}">` + list.map(d => {
         const left = Cal.seatsLeft(x.id, d.date, d.time, d.capacity);
-        const tu = turnoDaHora(d.time);
-        const rotulo = tu ? `<b>${esc(tu.nome)}</b><span>${tu.hora}–${tu.fim}</span>` : d.time;
-        const info = exclusivo ? t(left > 0 ? 'turnoLivre' : 'turnoOcupado') : (left > 0 ? `${left} ${t('spotsLeft')}` : '0');
+        const tu = turnoDaHora(d.time), grupo = !!(tu && tu.modo === 'grupo');
+        const rotulo = tu && tu.modo ? `<b>${t(grupo ? 'modoGrupo' : 'modoPriv')}</b><span>${esc(tu.nome)} · ${tu.hora}–${tu.fim}</span>`
+          : tu ? `<b>${esc(tu.nome)}</b><span>${tu.hora}–${tu.fim}</span>` : d.time;
+        const info = left <= 0 ? t(exclusivo ? 'turnoOcupado' : '0')
+          : grupo ? t('vagasGrupo', { max: tu.max || d.capacity, n: left })
+          : tu && tu.modo ? t('privateSub') + ' · ' + t('turnoLivre')
+          : exclusivo ? t('turnoLivre') : `${left} ${t('spotsLeft')}`;
+        /* no grupo, o máximo de pessoas é o que sobra de vaga */
         return left > 0
-          ? `<button class="slot ${S.time === d.time ? 'on' : ''}" data-t="${d.time}" data-c="${d.capacity}">${rotulo}<small>${info}</small></button>`
+          ? `<button class="slot ${S.time === d.time ? 'on' : ''}" data-t="${d.time}" data-c="${grupo ? left : d.capacity}">${rotulo}<small>${info}</small></button>`
           : `<button class="slot off" disabled>${rotulo}<small>${info}</small></button>`;
-      }).join('') + '</div>';
+      }).join('') + '</div>' + (semGrupoHoje ? `<p class="why">${t('grupoSoDe', { de: ddmm(gr.de), ate: ddmm(gr.ate) })}</p>` : '');
     }
   }
 
@@ -2494,9 +2509,10 @@ function admAgenda() {
           const passou = jaComecou(sel, tu.hora);
           const estado = reservas.length ? 'res' : fechado || !oferecido ? 'fechado' : 'livre';
           return `<div class="turnorow ${estado}">
-            <div class="tinfo"><b>${esc(tu.nome)}</b><small class="mono">${tu.hora}–${tu.fim}</small></div>
+            <div class="tinfo"><b>${esc(tu.nome)}</b><small class="mono">${tu.hora}–${tu.fim}</small>${tu.modo ? `<small>${esc(turnoModoTxt(tu))}</small>` : ''}</div>
             <div class="trest">${reservas.length
               ? reservas.map(b => { const x = Tours.get(b.tourId); return `<span class="pill ${Bookings.due(b) > 0 ? 'warn' : 'ok'}">${esc(b.name.split(' ')[0])} ×${b.pax}${x ? ' · ' + esc(tl(x.name)) : ''}</span>`; }).join('')
+                + (tu.modo === 'grupo' && tu.max ? `<span class="pill">${reservas.reduce((s, b) => s + (+b.pax || 0), 0)} / ${tu.max}</span>` : '')
               : `<span class="pill ${estado === 'livre' ? 'ok' : ''}">${t(estado === 'livre' ? 'turnoLivre' : 'turnoFechadoTxt')}</span>`}</div>
             ${passou ? '' : `<div class="tacts">${reservas.length ? '' : estado === 'livre'
               ? `<button class="mini" data-lanca="${tu.hora}">${t('turnoLancar')}</button><button class="mini" data-fecha="${tu.hora}">${t('turnoFechar')}</button>`
