@@ -25,7 +25,7 @@
    (o site lê de lá), então nada daqui pode ir para ele. */
 /* 27/10/2026: + privado — os códigos dos links curtos do kit da viagem (DB.privado.kits); o servidor
    procura ali (itens, colecao privado, id kits) o link que vai no e-mail de confirmação do cliente */
-const ITENS_COLS = ['pedidos', 'parceiros', 'depoimentos', 'privado'];
+const ITENS_COLS = ['pedidos', 'parceiros', 'depoimentos', 'privado', 'orcamentos'];
 /* estas sao "dicionarios" no DB (chave -> valor); as outras sao listas com id */
 const ITENS_DIC = ['privado'];
 const IT_SOMBRA = 'berlim_sombra_v1', IT_FILA = 'berlim_fila_v1', IT_MARCA = 'berlim_marca_v1';
