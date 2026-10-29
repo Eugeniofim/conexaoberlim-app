@@ -337,12 +337,20 @@ function _devolveCampos(l) {
 function redesenhaSuave(forcar) {
   if (!forcar && assinaturaTela() === _assinaturaTela) return false;          /* nada mudou: a tela fica quieta */
   if (isBusyEditing()) { pendingSync = true; return false; }
-  const y = scrollY, sujos = _camposSujos();
+  const y = scrollY, sujos = _camposSujos(), raiz = document.documentElement, alto = app.offsetHeight;
+  /* a rolagem do site é suave (html{scroll-behavior:smooth}): o scrollTo(0, 0) do route() e a volta
+     viravam uma animação de subir e descer. E, trocando o conteúdo, a página encolhia até as fotos
+     carregarem e o navegador puxava para cima. Durante a troca: rolagem seca e altura segura. */
+  raiz.style.scrollBehavior = 'auto';
+  app.style.minHeight = alto + 'px';
   document.body.classList.add('sem-anima');
   route();
   _devolveCampos(sujos);
   scrollTo(0, y);
-  requestAnimationFrame(() => { scrollTo(0, y); setTimeout(() => document.body.classList.remove('sem-anima'), 450); });
+  requestAnimationFrame(() => {
+    scrollTo(0, y);
+    setTimeout(() => { document.body.classList.remove('sem-anima'); app.style.minHeight = ''; raiz.style.scrollBehavior = ''; }, 450);
+  });
   return true;
 }
 
@@ -401,7 +409,8 @@ function viewHub() {
         <span class="ic">${ICONE_MENU.roteiro}</span><span><b>Monte seu roteiro</b><small>Você escolhe, eu organizo os dias</small></span><span class="go" aria-hidden="true">→</span>
       </button>
       <button class="lk tom-sobre" id="goAbout">
-        <span class="ic"><img id="hubFace" src="${esc(DB.settings.photo || 'guia.jpg')}" alt=""
+        <span class="ic"><img id="hubFace" src="${esc(fotoRosto(DB.settings.photo) || DB.settings.photo || 'guia.jpg')}" alt=""
+          ${fotoRosto(DB.settings.photo) ? `data-inteira="${esc(DB.settings.photo)}" onerror="this.onerror=null;this.src=this.dataset.inteira"` : ''}
           style="width:34px;height:34px;border-radius:50%;object-fit:cover;object-position:center 20%"></span><span><b>${t('aboutLink')}</b><small>${t('aboutLinkSub')}</small></span><span class="go" aria-hidden="true">→</span>
       </button>
       <a class="lk tom-wa" href="${waLink(t('waHello'))}" target="_blank" rel="noopener"><span class="ic wa">${ICONE_WA}</span><span><b>${t('whatsapp')}</b></span><span class="go" aria-hidden="true">→</span></a>
@@ -482,6 +491,10 @@ function viewAbout() {
   $('#bk').onclick = () => go('/');
   $('#abTours').onclick = () => go('/tours');
 }
+
+/* a bolinha do "Quem sou eu" (34 px): a versão só do rosto, se houver (fotos/x-rosto.jpg, 30/10/2026 —
+   o retrato novo é de busto e o rosto sumia na bolinha); se não houver, o onerror volta para a foto inteira */
+function fotoRosto(f) { return /^fotos\/[a-z0-9-]+\.jpg$/.test(f || '') && !/-rosto\.jpg$/.test(f) ? f.replace(/\.jpg$/, '-rosto.jpg') : ''; }
 
 /* A foto pode vir do painel (dataURL) ou de um guia.jpg na pasta.
    Se não houver nenhuma das duas, troca a imagem pelo aviso. */
@@ -927,11 +940,14 @@ function renderBook() {
      Sem datas publicadas, direto para o WhatsApp. */
   const temDatas = Cal.departures(x.id, isoToday(), addDays(isoToday(), 430)).some(d => !jaComecou(d.date, d.time));
   if (sobConsulta(x) && temDatas && S.step >= 2) {
-    const tu = turnoDaHora(S.time), modoTxt = tu && tu.modo ? t(tu.modo === 'grupo' ? 'modoGrupoMsg' : 'modoPrivMsg') : '';
+    const tu = turnoDaHora(S.time), proprio = !tu && S.fim;
+    const modoTxt = tu && tu.modo ? t(tu.modo === 'grupo' ? 'modoGrupoMsg' : 'modoPrivMsg') : proprio && turnos().some(z => z.modo) ? t('modoPrivMsg') : '';
     const limite = Math.min(x.max || 20, S.cap || 99);
     if (S.pax > limite) S.pax = limite;
-    const quando = fmtDate(S.date) + ' · ' + (tu ? `${tu.nome} (${tu.hora}–${tu.fim})` : S.time) + (modoTxt ? ' · ' + modoTxt : '');
-    const msg = t('waAskQuoteTurno', { tour: tl(x.name), data: fmtDate(S.date), turno: (tu ? `${tu.nome.toLowerCase()} (${tu.hora}–${tu.fim})` : S.time) + (modoTxt ? ', ' + modoTxt : ''), n: S.pax });
+    const quando = fmtDate(S.date) + ' · ' + (tu ? `${tu.nome} (${tu.hora}–${tu.fim})` : proprio ? rotuloFaixa(S.time, S.fim) : S.time) + (modoTxt ? ' · ' + modoTxt : '');
+    const msg = proprio
+      ? t('waAskQuoteHora', { tour: tl(x.name), data: fmtDate(S.date), ini: S.time, fim: S.fim, modo: modoTxt || t('modoPrivMsg'), n: S.pax })
+      : t('waAskQuoteTurno', { tour: tl(x.name), data: fmtDate(S.date), turno: (tu ? `${tu.nome.toLowerCase()} (${tu.hora}–${tu.fim})` : S.time) + (modoTxt ? ', ' + modoTxt : ''), n: S.pax });
     book.innerHTML = `
       <div class="bhead"><span class="bprice">${t('onRequest')}</span></div>
       <div class="bstep">${t('step2')}</div>
@@ -982,7 +998,7 @@ function renderBook() {
     $$('.dcell', book).forEach(b => b.onclick = () => { S.date = b.dataset.d; S.time = null; renderBook(); });
     $('#maisDatas')?.addEventListener('click', () => { S.nDatas = limite + 30; renderBook(); });
     $$('[data-t]', book).forEach(b => b.onclick = () => {
-      S.time = b.dataset.t; S.cap = +b.dataset.c;
+      S.time = b.dataset.t; S.fim = b.dataset.f || ''; S.cap = +b.dataset.c;
       $$('[data-t]', book).forEach(z => z.classList.remove('on')); b.classList.add('on');
       $('#next1').disabled = false;
     });
@@ -991,20 +1007,22 @@ function renderBook() {
     /* com tipo de visita nos turnos (29/10/2026): o cliente escolhe "Visita privativa" (manhã) ou
        "Visita em grupo" (tarde, até 12, só no período dela) — o turno vem junto */
     function timesHtml(list) {
-      const exclusivo = turnoExclusivo(), comModo = list.some(d => (turnoDaHora(d.time) || {}).modo);
+      const exclusivo = turnoExclusivo(), comModo = turnos().some(tu => tu.modo);
       const gr = turnoGrupo(), semGrupoHoje = comModo && gr && gr.de && !list.some(d => d.time === gr.hora);
       return `<p class="hint">${t(comModo ? 'pickModo' : turnos().length ? 'pickTurno' : 'pickTime')}</p><div class="times ${turnos().length ? 'turnos' : ''}">` + list.map(d => {
         const left = Cal.seatsLeft(x.id, d.date, d.time, d.capacity);
         const tu = turnoDaHora(d.time), grupo = !!(tu && tu.modo === 'grupo');
+        const proprio = !tu && d.fim && comModo;   /* horário escrito à mão (ex.: dia inteiro): visita privativa */
         const rotulo = tu && tu.modo ? `<b>${t(grupo ? 'modoGrupo' : 'modoPriv')}</b><span>${esc(tu.nome)} · ${tu.hora}–${tu.fim}</span>`
+          : proprio ? `<b>${t('modoPriv')}</b><span>${esc(rotuloFaixa(d.time, d.fim))}</span>`
           : tu ? `<b>${esc(tu.nome)}</b><span>${tu.hora}–${tu.fim}</span>` : d.time;
         const info = left <= 0 ? t(exclusivo ? 'turnoOcupado' : '0')
           : grupo ? t('vagasGrupo', { max: tu.max || d.capacity, n: left })
-          : tu && tu.modo ? t('privateSub') + ' · ' + t('turnoLivre')
+          : (tu && tu.modo) || proprio ? t('privateSub') + ' · ' + t('turnoLivre')
           : exclusivo ? t('turnoLivre') : `${left} ${t('spotsLeft')}`;
         /* no grupo, o máximo de pessoas é o que sobra de vaga */
         return left > 0
-          ? `<button class="slot ${S.time === d.time ? 'on' : ''}" data-t="${d.time}" data-c="${grupo ? left : d.capacity}">${rotulo}<small>${info}</small></button>`
+          ? `<button class="slot ${S.time === d.time ? 'on' : ''}" data-t="${d.time}" data-f="${esc(d.fim || '')}" data-c="${grupo ? left : d.capacity}">${rotulo}<small>${info}</small></button>`
           : `<button class="slot off" disabled>${rotulo}<small>${info}</small></button>`;
       }).join('') + '</div>' + (semGrupoHoje ? `<p class="why">${t('grupoSoDe', { de: ddmm(gr.de), ate: ddmm(gr.ate) })}</p>` : '');
     }
@@ -1428,8 +1446,11 @@ function admTourEdit(id) {
           <div class="frow">
             <label class="fld">${t('dtDia')}<input id="oDate" type="date" value="${addDays(isoToday(), 7)}"></label>
             ${modoTurnos()
-              ? `<label class="fld">${t('dtTurno')}<select id="oTime">${turnos().map(tu => `<option value="${tu.hora}">${esc(rotuloTurno(tu))}</option>`).join('')}</select></label>
-                 <input id="oCap" type="hidden" value="${x.max}">`
+              ? `<label class="fld">${t('dtTurno')}<select id="oTime">${turnos().map(tu => `<option value="${tu.hora}">${esc(rotuloTurno(tu))}</option>`).join('')}<option value="outro">${t('dtOutroHorario')}</option></select></label>
+                 <input id="oCap" type="hidden" value="${x.max}">
+                 <div class="frow dtOutro" id="oOutro" hidden>
+                   <label class="fld">${t('dtInicio')}<input id="oIni" type="time" value="08:00"></label>
+                   <label class="fld">${t('dtFim')}<input id="oFim" type="time" value="19:00"></label></div>`
               : `<label class="fld">${t('dtHora')}<input id="oTime" value="10:00" placeholder="09:00"></label>
                  <label class="fld">${t('dtVagas')}<input id="oCap" type="number" min="1" value="${x.max}"></label>`}
           </div>
@@ -1444,7 +1465,11 @@ function admTourEdit(id) {
             <div class="frow">
               ${modoTurnos()
                 ? `<div class="fld"><span>${t('dtTurnos')}</span><div class="wdrow" id="rTurnos">${turnos().map(tu =>
-                    `<label class="chk turnochk"><input type="checkbox" value="${tu.hora}" checked> ${esc(rotuloTurno(tu))}</label>`).join('')}</div></div>
+                    `<label class="chk turnochk"><input type="checkbox" value="${tu.hora}" checked> ${esc(rotuloTurno(tu))}</label>`).join('')}
+                    <label class="chk turnochk"><input type="checkbox" id="rOutroCk"> ${t('dtOutroHorario')}</label></div>
+                    <div class="frow dtOutro" id="rOutro" hidden>
+                      <label class="fld">${t('dtInicio')}<input id="rIni" type="time" value="08:00"></label>
+                      <label class="fld">${t('dtFim')}<input id="rFim" type="time" value="19:00"></label></div></div>
                    <input id="rCap" type="hidden" value="${x.max}">`
                 : `<label class="fld">${t('dtHora')}<input id="rTime" value="16:30"></label>
                    <label class="fld">${t('dtVagas')}<input id="rCap" type="number" min="1" value="${x.max}"></label>`}
@@ -1697,26 +1722,50 @@ function admTourEdit(id) {
       wds.has(w) ? wds.delete(w) : wds.add(w);
       b.classList.toggle('on', wds.has(w));
     });
+    /* OUTRO HORÁRIO (29/10/2026, "tem passeios que são o dia todo"): início e fim escritos à mão */
+    const horarioOutro = (ini, fim) => {
+      const a = hmMin(ini), b = hmMin(fim);
+      if (a == null || b == null || b <= a) { toast(t('dtHorarioRuim')); return null; }
+      if (turnoDaHora(ini)) { toast(t('dtHorarioTurno', { h: ini })); return null; }
+      return { time: ini, fim };
+    };
+    $('#oTime')?.addEventListener('change', () => { $('#oOutro').hidden = $('#oTime').value !== 'outro'; });
+    /* dia inteiro não costuma ter manhã e tarde também: marcar "Outro horário" desmarca os turnos (dá para remarcar) */
+    $('#rOutroCk')?.addEventListener('change', () => {
+      $('#rOutro').hidden = !$('#rOutroCk').checked;
+      if ($('#rOutroCk').checked) $$('#rTurnos input[value]').forEach(i => { i.checked = false; });
+    });
     $('#addRule').onclick = () => {
       if (!wds.size) return toast(t('xDiasSemana'));
-      const horas = $('#rTurnos') ? $$('#rTurnos input:checked').map(i => i.value) : [$('#rTime').value];
+      const horas = $('#rTurnos') ? $$('#rTurnos input[value]:checked').map(i => ({ time: i.value })) : [{ time: $('#rTime').value }];
+      if ($('#rOutroCk') && $('#rOutroCk').checked) { const o = horarioOutro($('#rIni').value, $('#rFim').value); if (!o) return; horas.push(o); }
       if (!horas.length) return toast(t('dtEscolhaTurno'));
-      for (const h of horas) Cal.addRule({ tourId: x.id, weekdays: [...wds], time: h, capacity: +$('#rCap').value || x.max, from: $('#rFrom').value, until: $('#rUntil').value });
+      for (const h of horas) Cal.addRule({ tourId: x.id, weekdays: [...wds], ...h, capacity: +$('#rCap').value || x.max, from: $('#rFrom').value, until: $('#rUntil').value });
       drawRules(); toast('✓');
     };
     $('#addOne').onclick = () => {
-      Cal.addDeparture({ tourId: x.id, date: $('#oDate').value, time: $('#oTime').value, capacity: +$('#oCap').value || x.max });
+      let h = { time: $('#oTime').value };
+      if (h.time === 'outro') { h = horarioOutro($('#oIni').value, $('#oFim').value); if (!h) return; }
+      Cal.addDeparture({ tourId: x.id, date: $('#oDate').value, ...h, capacity: +$('#oCap').value || x.max });
       drawRules(); toast('✓');
     };
     function drawRules() {
-      const rules = Cal.rulesFor(x.id);
+      /* o ano todo: as regras automáticas do mesmo turno (uma por temporada antiga) viram UMA linha,
+         e o × tira o turno inteiro deste passeio */
+      const juntas = anoTodo(), vistas = new Set();
+      const rules = Cal.rulesFor(x.id).filter(r => !(juntas && r.auto) || (!vistas.has(r.time) && vistas.add(r.time)));
       const ones = DB.departures.filter(d => d.tourId === x.id);
       $('#rulesList').innerHTML =
         (rules.length || ones.length)
-          ? rules.map(r => `<div class="deprow"><span>${r.weekdays.length === 7 ? t('todosOsDias') : r.weekdays.map(w => t('wd')[w]).join(', ')} · <b>${turnoDaHora(r.time) ? esc(rotuloTurno(turnoDaHora(r.time))) : `<span class="mono">${r.time}</span>`}</b> · ${fmtDate(r.from)} → ${fmtDate(r.until)}</span><button class="mini danger" data-rr="${r.id}" aria-label="${t('xRemover')}">×</button></div>`).join('')
-            + ones.map(d => `<div class="deprow"><span>${fmtDate(d.date)} · <b>${turnoDaHora(d.time) ? esc(rotuloTurno(turnoDaHora(d.time))) : `<span class="mono">${d.time}</span>`}</b>${modoTurnos() ? '' : ` · ${d.capacity} ${t('spotsLeft')}`}</span><button class="mini danger" data-rd="${d.id}" aria-label="${t('xRemover')}">×</button></div>`).join('')
+          ? rules.map(r => `<div class="deprow"><span>${r.weekdays.length === 7 ? t('todosOsDias') : r.weekdays.map(w => t('wd')[w]).join(', ')} · <b>${turnoDaHora(r.time) ? esc(rotuloTurno(turnoDaHora(r.time))) : r.fim ? esc(rotuloFaixa(r.time, r.fim)) : `<span class="mono">${r.time}</span>`}</b> · ${r.auto && anoTodo() ? t('todoAno') : `${fmtDate(r.from)} → ${fmtDate(r.until)}`}</span><button class="mini danger" data-rr="${r.id}" aria-label="${t('xRemover')}">×</button></div>`).join('')
+            + ones.map(d => `<div class="deprow"><span>${fmtDate(d.date)} · <b>${turnoDaHora(d.time) ? esc(rotuloTurno(turnoDaHora(d.time))) : d.fim ? esc(rotuloFaixa(d.time, d.fim)) : `<span class="mono">${d.time}</span>`}</b>${modoTurnos() ? '' : ` · ${d.capacity} ${t('spotsLeft')}`}</span><button class="mini danger" data-rd="${d.id}" aria-label="${t('xRemover')}">×</button></div>`).join('')
           : `<p class="empty">${t('noDates')}</p>`;
-      $$('[data-rr]').forEach(b => b.onclick = () => { Cal.removeRule(b.dataset.rr); drawRules(); });
+      $$('[data-rr]').forEach(b => b.onclick = () => {
+        const r = DB.rules.find(z => z.id === b.dataset.rr);
+        if (r && r.auto && juntas) { DB.rules = DB.rules.filter(z => !(z.tourId === x.id && z.auto && z.time === r.time)); save(); }
+        else Cal.removeRule(b.dataset.rr);
+        drawRules();
+      });
       $$('[data-rd]').forEach(b => b.onclick = () => { Cal.removeDeparture(b.dataset.rd); drawRules(); });
     }
     drawRules();
@@ -1749,6 +1798,10 @@ function situacaoPgto(b, hoje) {
   };
 }
 
+/* os horários de um passeio para a Nova reserva: os turnos e os escritos à mão (dia inteiro) */
+function nrHorarios(tourId, sel) {
+  return horariosDoPasseio(tourId).map(h => `<option value="${esc(h.hora)}" ${sel === h.hora ? 'selected' : ''}>${esc(h.turno ? rotuloTurno(h.turno) : h.nome)}</option>`).join('');
+}
 function admBookings() {
   const list = Bookings.all();
   const today = isoToday();
@@ -1765,7 +1818,7 @@ function admBookings() {
       <div class="frow">
         <label class="fld">${t('nrData')}<input id="nrData" type="date"></label>
         ${modoTurnos()
-          ? `<label class="fld">${t('dtTurno')}<select id="nrHora">${turnos().map(tu => `<option value="${tu.hora}" ${admBookings._pre && admBookings._pre.time === tu.hora ? 'selected' : ''}>${esc(rotuloTurno(tu))}</option>`).join('')}</select></label>`
+          ? `<label class="fld">${t('dtTurno')}<select id="nrHora">${nrHorarios((Tours.all()[0] || {}).id, admBookings._pre && admBookings._pre.time)}</select></label>`
           : `<label class="fld">${t('nrHora')}<input id="nrHora" value="09:00"></label>`}
       </div>
       <div class="frow">
@@ -1833,6 +1886,8 @@ function admBookings() {
   ['#nrTour', '#nrPax', '#nrData', '#nrHora'].forEach(sel => {
     const el = $(sel); if (el) el.addEventListener('change', nrRecalcula);
   });
+  /* trocou o passeio: os horários são os dele */
+  if (modoTurnos() && $('#nrTour') && $('#nrHora')) $('#nrTour').addEventListener('change', () => { $('#nrHora').innerHTML = nrHorarios($('#nrTour').value); nrRecalcula(); });
   if ($('#nrData')) { $('#nrData').value = (admBookings._pre && admBookings._pre.date) || isoToday(); nrRecalcula(); }
   admBookings._pre = null;
 

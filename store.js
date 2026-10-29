@@ -386,7 +386,9 @@ function load() {
      meses" — entrando em novembro a fevereiro. Uma vez só, as regras de turno
      todos-os-dias viram as janelas da temporada (março a outubro). */
   const tpChave = GUIA_CFG.temporada ? GUIA_CFG.temporada.de + '/' + GUIA_CFG.temporada.ate : '';
-  if (tpChave && turnos().length && DB.settings.temporadaAplicada !== tpChave && DB.tours.length) {
+  /* o ano todo (29/10/2026): a regra automática já vale em qualquer data (Cal.departures) — reescrever
+     as regras traria de volta um turno que ela tenha apagado de um passeio */
+  if (tpChave && !anoTodo() && turnos().length && DB.settings.temporadaAplicada !== tpChave && DB.tours.length) {
     const eTurnoTodoDia = r => r.weekdays && r.weekdays.length === 7 && turnoDaHora(r.time);
     for (const t of DB.tours) {
       if (!DB.rules.some(r => r.tourId === t.id && eTurnoTodoDia(r))) continue;
@@ -451,6 +453,39 @@ function turnos() {
   const cfg = GUIA_CFG.turnos || [];
   return l.map(tu => { const c = cfg.find(z => z.hora === tu.hora); return c ? { ...c, ...tu } : tu; });
 }
+/* HORÁRIO ESCRITO À MÃO (29/10/2026, "tem passeios que são o dia todo"): além de Manhã e Tarde, a
+   regra ou a data avulsa de um passeio pode ter início e fim próprios (ex.: 08:00–19:00). Ela é uma
+   guia só: no mesmo dia, o que se cruza ocupa — o dia inteiro reservado fecha manhã e tarde, e a
+   manhã reservada fecha o dia inteiro. Manhã (09:30–13:30) e Tarde (14:00–18:00) não se cruzam. */
+const hmMin = (h) => { const m = String(h || '').match(/^(\d{1,2}):(\d{2})/); return m ? +m[1] * 60 + +m[2] : null; };
+const minHm = (n) => String(Math.floor(n / 60)).padStart(2, '0') + ':' + String(n % 60).padStart(2, '0');
+/* o fim de um horário: o que veio junto; senão o do turno; senão o da regra/data daquele passeio; senão 4 h depois */
+function fimDoHorario(tourId, time, fim) {
+  if (fim && hmMin(fim) != null) return fim;
+  const tu = turnoDaHora(time); if (tu && tu.fim) return tu.fim;
+  const r = (DB.rules || []).find(z => z.tourId === tourId && z.time === time && z.fim) || (DB.departures || []).find(z => z.tourId === tourId && z.time === time && z.fim);
+  if (r) return r.fim;
+  const i = hmMin(time); return i == null ? '' : minHm(Math.min(i + 240, 23 * 60 + 59));
+}
+function faixaHorario(tourId, time, fim) { const a = hmMin(time), b = hmMin(fimDoHorario(tourId, time, fim)); return [a, b == null || b <= a ? a + 240 : b]; }
+const cruza = (p, q) => p[0] != null && q[0] != null && p[0] < q[1] && q[0] < p[1];
+/* reserva que não ocupa o dia dela: serviço avulso do orçamento (hotel, traslado com motorista) ou sem horário */
+const ocupaDia = (tourId, semHora) => !semHora && !((Tours.get(tourId) || {}).naoOcupaDia);
+/* os horários de um passeio: os turnos + os escritos à mão nas regras e datas avulsas dele */
+function horariosDoPasseio(tourId) {
+  const out = turnos().map(tu => ({ hora: tu.hora, fim: tu.fim, nome: tu.nome, turno: tu }));
+  for (const r of [...(DB.rules || []), ...(DB.departures || [])])
+    if (r.tourId === tourId && r.fim && !turnoDaHora(r.time) && !out.some(o => o.hora === r.time)) out.push({ hora: r.time, fim: r.fim, nome: rotuloFaixa(r.time, r.fim) });
+  return out.sort((a, b) => a.hora.localeCompare(b.hora));
+}
+/* "Dia inteiro · 08:00–19:00" (6 h ou mais) ou "Horário especial · 15:00–17:00" */
+function rotuloFaixa(ini, fim) {
+  const dur = (hmMin(fim) || 0) - (hmMin(ini) || 0);
+  return `${typeof t === 'function' ? t(dur >= 360 ? 'diaInteiro' : 'horarioEspecial') : (dur >= 360 ? 'Dia inteiro' : 'Horário especial')} · ${ini}–${fim}`;
+}
+/* o ano todo (29/10/2026: "de 11/10 a 09/03 só passeios de manhã"): as regras automáticas de turno
+   valem em qualquer data — quem limita é o turno (a tarde em grupo só de 10/03 a 10/10) */
+function anoTodo() { const tp = GUIA_CFG.temporada; return !tp || (tp.de === '01-01' && tp.ate === '12-31'); }
 /* o turno existe nesse dia? (a tarde em grupo só de 10/03 a 10/10) */
 function turnoNoDia(tu, iso) {
   if (!tu || !tu.de || !tu.ate || !iso) return true;
@@ -490,7 +525,9 @@ function rotuloTurno(tu) { return `${tu.nome} · ${tu.hora}–${tu.fim}`; }
 /* o dia em turnos: para cada turno, se está aberto (algum passeio sai), fechado, e quem reservou */
 function diaEmTurnos(date) {
   return turnos().map(tu => {
-    const reservas = DB.bookings.filter(b => b.date === date && b.time === tu.hora && b.status !== 'cancelled');
+    const ft = faixaHorario('', tu.hora, tu.fim);
+    const reservas = DB.bookings.filter(b => b.date === date && b.status !== 'cancelled'
+      && (b.time === tu.hora || (ocupaDia(b.tourId, b.semHora) && !turnoDaHora(b.time) && cruza(ft, faixaHorario(b.tourId, b.time, b.horaFim)))));
     const fechado = Cal.turnoFechado(date, tu.hora) || Cal.blocked(date, tu.hora);
     const oferecido = !fechado && DB.tours.some(x => x.status !== 'draft' && Cal.departures(x.id, date, date).some(d => d.time === tu.hora));
     return { tu, reservas, fechado, oferecido };
@@ -509,6 +546,12 @@ const Cal = {
   /* bloqueio do dia inteiro (férias) ou de UM turno (b.time): ela fecha a
      manhã do dia 12 porque tem outro compromisso, e a tarde segue aberta */
   blocked(date, time) { return DB.blocks.some(b => date >= b.from && date <= b.until && (!b.time || b.time === time)); },
+  /* turno fechado na Agenda fecha também o horário que se cruza com ele (fechou a manhã → o dia inteiro some) */
+  bloqueadoNaFaixa(date, time, fim) {
+    if (Cal.blocked(date, time)) return true;
+    const minha = faixaHorario('', time, fim);
+    return DB.blocks.some(b => b.time && b.time !== time && date >= b.from && date <= b.until && cruza(minha, faixaHorario('', b.time)));
+  },
   turnoFechado(date, time) { return DB.blocks.some(b => b.from === date && b.until === date && b.time === time); },
   fechaTurno(date, time) { if (!Cal.turnoFechado(date, time)) Cal.addBlock({ from: date, until: date, time, reason: 'turno' }); },
   abreTurno(date, time) { DB.blocks = DB.blocks.filter(b => !(b.from === date && b.until === date && b.time === time)); save(); },
@@ -516,22 +559,25 @@ const Cal = {
   /* todas as saídas de um passeio num intervalo: regras expandidas + avulsas − bloqueios */
   departures(tourId, fromIso, toIso) {
     const out = [];
+    const sempre = anoTodo();
     for (const r of Cal.rulesFor(tourId)) {
-      let d = fromIso < r.from ? r.from : fromIso;
-      const end = toIso < r.until ? toIso : r.until;
+      const livre = sempre && r.auto;      /* regra automática de turno: o ano todo */
+      let d = livre || fromIso >= r.from ? fromIso : r.from;
+      const end = livre || toIso <= r.until ? toIso : r.until;
       while (d <= end) {
         const wd = new Date(d + 'T12:00:00').getDay();
-        if (r.weekdays.includes(wd) && !Cal.blocked(d, r.time)) {
-          out.push({ tourId, date: d, time: r.time, capacity: r.capacity, ruleId: r.id });
+        if (r.weekdays.includes(wd) && !Cal.bloqueadoNaFaixa(d, r.time, r.fim)) {
+          out.push({ tourId, date: d, time: r.time, capacity: r.capacity, ruleId: r.id, ...(r.fim ? { fim: r.fim } : {}) });
         }
         d = addDays(d, 1);
       }
     }
     for (const dep of DB.departures.filter(x => x.tourId === tourId)) {
-      if (dep.date >= fromIso && dep.date <= toIso && !Cal.blocked(dep.date, dep.time)) out.push(dep);
+      if (dep.date >= fromIso && dep.date <= toIso && !Cal.bloqueadoNaFaixa(dep.date, dep.time, dep.fim)) out.push(dep);
     }
     out.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
-    return out.filter(d => turnoNoDia(turnoDaHora(d.time), d.date));
+    const visto = new Set();
+    return out.filter(d => { const k = d.date + ' ' + d.time; if (visto.has(k)) return false; visto.add(k); return turnoNoDia(turnoDaHora(d.time), d.date); });
   },
 
   seatsLeft(tourId, date, time, capacity) {
@@ -539,8 +585,13 @@ const Cal = {
        qualquer reserva naquele dia e horário, em QUALQUER passeio, ocupa o
        turno inteiro. Livre = cabe o grupo todo (capacity); ocupado = 0. */
     if (turnoExclusivo()) {
-      const doTurno = DB.bookings.filter(b => b.date === date && b.time === time && b.status === 'confirmed');
-      const daNuvem = Array.isArray(DB.seatCounts) ? DB.seatCounts.filter(c => c.date === date && c.time === time && +c.pax > 0) : [];
+      const doDia = DB.bookings.filter(b => b.date === date && b.status === 'confirmed');
+      const nuvemDia = Array.isArray(DB.seatCounts) ? DB.seatCounts.filter(c => c.date === date && +c.pax > 0) : [];
+      /* ela é uma só: outro horário do mesmo dia que se cruza com este (o dia inteiro e a manhã) ocupa este */
+      const minha = faixaHorario(tourId, time);
+      if (doDia.some(b => b.time !== time && ocupaDia(b.tourId, b.semHora) && cruza(minha, faixaHorario(b.tourId, b.time, b.horaFim)))
+        || nuvemDia.some(c => c.time !== time && ocupaDia(c.tourId) && cruza(minha, faixaHorario(c.tourId, c.time)))) return 0;
+      const doTurno = doDia.filter(b => b.time === time), daNuvem = nuvemDia.filter(c => c.time === time);
       const tu = turnoDaHora(time);
       /* VISITA EM GRUPO (a tarde): a MESMA visita junta pessoas até o limite (12); outra visita no
          mesmo turno não dá, porque ela é uma só. As vagas são o limite menos quem já está. */

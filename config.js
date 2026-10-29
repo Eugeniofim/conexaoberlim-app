@@ -104,9 +104,11 @@ var APP_CONFIG = {
       { hora: '14:00', fim: '18:00', nome: 'Tarde', modo: 'grupo', max: 12, de: '03-10', ate: '10-10' },
     ],
     turnoExclusivo: true,
-    /* temporada dos passeios: de 1º de março a 31 de outubro (Dulcineia, 24/09/2026).
-       Fora dela o app não oferece data nenhuma. */
-    temporada: { de: '03-01', ate: '10-31' },
+    /* temporada: o ANO TODO (29/10/2026, ele pela Dulcineia: "de 11/10 a 09/03 só
+       passeios de manhã"). A manhã vale sempre; a tarde em grupo só de 10/03 a
+       10/10 (turnos acima). Antes era de 1º de março a 31 de outubro e fora
+       disso o app não oferecia data nenhuma. */
+    temporada: { de: '01-01', ate: '12-31' },
     linguas: ['pt'],               /* o app inteiro so em portugues: sem seletor de idioma (Eugenio, 23/09) */
     /* a marca dela, tirada em vetor do manual (Studio Nama, v2.0): o app pinta
        cada arquivo com a cor do tema. Razao = largura / altura do desenho. */

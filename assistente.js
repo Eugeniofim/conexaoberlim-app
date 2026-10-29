@@ -69,7 +69,7 @@ if (COFRE) fetch(COFRE + '/api/estado', { cache: 'no-store' }).then(r => r.json(
   cofreEstado = { claude: !!e.claude, imagem: !!e.imagem, instagram: !!e.instagram, whatsapp: !!e.whatsapp };
   if (typeof iaAtualizaFab === 'function') iaAtualizaFab();
   if (iaEl && iaEl.g.classList.contains('aberta') && !iaOcupado) iaDesenha();
-  if ((location.hash.startsWith('#/adm/marketing') || location.hash.startsWith('#/adm/inbox')) && typeof route === 'function' && !(typeof isBusyEditing === 'function' && isBusyEditing())) route();
+  if ((location.hash.startsWith('#/adm/marketing') || location.hash.startsWith('#/adm/inbox')) && typeof route === 'function' && !(typeof isBusyEditing === 'function' && isBusyEditing())) { if (typeof redesenhaSuave === 'function') redesenhaSuave(true); else route(); }
 }).catch(() => {});
 const iaPerguntaAntes = () => iaLe(IA_CONFIRMA, true) !== false;
 
@@ -822,6 +822,7 @@ async function iaRodaFerramenta(nome, input) {
 function iaRedesenhaTela() {
   if (typeof route !== 'function') return;
   if (typeof isBusyEditing === 'function' && isBusyEditing()) return;
+  if (typeof redesenhaSuave === 'function') { redesenhaSuave(true); return; }
   const y = window.scrollY || 0; route(); scrollTo(0, y);
 }
 

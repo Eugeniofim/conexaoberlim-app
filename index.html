@@ -26,7 +26,7 @@
 (function(){try{var t=localStorage.getItem('vi_tema');
 if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
 </script>
-<link rel="stylesheet" href="tokens.css?v=0.8.3">
+<link rel="stylesheet" href="tokens.css?v=0.8.5">
 <link rel="icon" href="arte/favicon.svg" type="image/svg+xml">
 <style>
 /* ============ base ============ */
@@ -767,7 +767,10 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
 .about{max-width:620px;margin:0 auto;padding:0 var(--s-8) var(--s-14)}
 .ab-hero{position:relative;margin:0 calc(var(--s-8) * -1) var(--s-9);
   border-radius:0 0 var(--r-xl) var(--r-xl);overflow:hidden}
-.ab-photo{width:100%;aspect-ratio:4/5;max-height:60vh;object-fit:cover;object-position:center 20%;
+/* 30/10/2026 (retrato novo, de perto): com 60vh a caixa ficava deitada no computador e a faixa com o
+   nome cobria boca e queixo. Em pé (3:4, até 85vh) e enquadrada pelo alto, o rosto fica acima da faixa — no celular
+   o selo quebra em 2 linhas e o 4:5 encostava no queixo. */
+.ab-photo{width:100%;aspect-ratio:3/4;max-height:85vh;object-fit:cover;object-position:center 10%;
   display:block;background:var(--surface-2)}
 .ab-photo.none{display:grid;place-items:center;aspect-ratio:4/3;color:var(--ink-3);
   font-size:var(--fs-3);text-align:center;padding:var(--s-10) var(--s-8);line-height:1.6}
@@ -1088,6 +1091,8 @@ html{font-synthesis:none}
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
 .thcr{z-index:2}
 .sccr a,.thcr a{color:inherit;text-decoration:none;pointer-events:auto}
+/* o "Outro horário" do editor só aparece quando escolhido (o .frow é grid e passava por cima do hidden) */
+.dtOutro[hidden]{display:none!important}
 /* ajustes vistos no celular (23/09): selo do tipo legivel no tema escuro,
    credito da foto longe do numero da parada, texto da parada em tamanho de leitura */
 .tbadge{background:var(--brand-offwhite);color:var(--brand-preto)}
@@ -1597,38 +1602,38 @@ body.sem-anima #app>*,body.sem-anima #app .stage,body.sem-anima #app .wrap,body.
 </div>
 
 <div id="app"></div>
-<script src="config.js?v=0.8.3"></script>
-<script src="logo.js?v=0.8.3"></script>
-<script src="fx.js?v=0.8.3"></script>
-<script src="qrcode.js?v=0.8.3"></script>
-<script src="qr.js?v=0.8.3"></script>
-<script src="pix.js?v=0.8.3"></script>
-<script src="traduz.js?v=0.8.3"></script>
-<script src="idiomas.js?v=0.8.3"></script>
-<script src="store.js?v=0.8.3"></script>
-<script src="fotos-credito.js?v=0.8.3"></script>
-<script src="auth.js?v=0.8.3"></script>
-<script src="cores.js?v=0.8.3"></script>
-<script src="pedidos.js?v=0.8.3"></script>
-<script src="parceiros.js?v=0.8.3"></script>
-<script src="depoimentos.js?v=0.8.3"></script>
-<script src="cloud.js?v=0.8.3"></script>
-<script src="nuvem-itens.js?v=0.8.3"></script>
-<script src="i18n.js?v=0.8.3"></script>
-<script src="avisos.js?v=0.8.3"></script>
-<script src="app.js?v=0.8.3"></script>
-<script src="ficha.js?v=0.8.3"></script>
-<script src="publico-berlim.js?v=0.8.3"></script>
-<script src="pdf-berlim.js?v=0.8.3"></script>
-<script src="kit-berlim.js?v=0.8.3"></script>
-<script src="assistente.js?v=0.8.3"></script>
-<script src="creditos.js?v=0.8.3"></script>
-<script src="hoje.js?v=0.8.3"></script>
-<script src="berlim-ia.js?v=0.8.3"></script>
-<script src="assistente-voz.js?v=0.8.3"></script>
-<script src="orcamento-premium.js?v=0.8.3"></script>
-<script src="orcamento-premium-ia.js?v=0.8.3"></script>
-<script src="fotos-nuvem.js?v=0.8.3"></script>
+<script src="config.js?v=0.8.5"></script>
+<script src="logo.js?v=0.8.5"></script>
+<script src="fx.js?v=0.8.5"></script>
+<script src="qrcode.js?v=0.8.5"></script>
+<script src="qr.js?v=0.8.5"></script>
+<script src="pix.js?v=0.8.5"></script>
+<script src="traduz.js?v=0.8.5"></script>
+<script src="idiomas.js?v=0.8.5"></script>
+<script src="store.js?v=0.8.5"></script>
+<script src="fotos-credito.js?v=0.8.5"></script>
+<script src="auth.js?v=0.8.5"></script>
+<script src="cores.js?v=0.8.5"></script>
+<script src="pedidos.js?v=0.8.5"></script>
+<script src="parceiros.js?v=0.8.5"></script>
+<script src="depoimentos.js?v=0.8.5"></script>
+<script src="cloud.js?v=0.8.5"></script>
+<script src="nuvem-itens.js?v=0.8.5"></script>
+<script src="i18n.js?v=0.8.5"></script>
+<script src="avisos.js?v=0.8.5"></script>
+<script src="app.js?v=0.8.5"></script>
+<script src="ficha.js?v=0.8.5"></script>
+<script src="publico-berlim.js?v=0.8.5"></script>
+<script src="pdf-berlim.js?v=0.8.5"></script>
+<script src="kit-berlim.js?v=0.8.5"></script>
+<script src="assistente.js?v=0.8.5"></script>
+<script src="creditos.js?v=0.8.5"></script>
+<script src="hoje.js?v=0.8.5"></script>
+<script src="berlim-ia.js?v=0.8.5"></script>
+<script src="assistente-voz.js?v=0.8.5"></script>
+<script src="orcamento-premium.js?v=0.8.5"></script>
+<script src="orcamento-premium-ia.js?v=0.8.5"></script>
+<script src="fotos-nuvem.js?v=0.8.5"></script>
 <script>
 /* PWA — como a versão nova chega no celular dela.
 
